@@ -23,6 +23,7 @@ import pandas as pd
 import psycopg2
 
 # Local files
+from tonus.config import Conf
 from tonus.process import get_peaks
 
 
@@ -47,11 +48,12 @@ class Root(tk.Tk):
         try:
             # FDSN start-up connection
             self.client = self.connect_waveserver(
-                self.conf['fdsn']['ip'], self.conf['fdsn']['port']
+                self.c.fdsn.ip, self.c.fdsn.port
             )
 
             # Connect to database
-            self.conn = psycopg2.connect(**self.conf['db'])
+            self.conn = psycopg2.connect(**self.c.db)
+            logging.info('Succesfully connected to the database.')
 
         except Exception as e:
             print(e)
@@ -67,13 +69,17 @@ class Root(tk.Tk):
         self.frm_process = self.FrameProcess(self)
         self.frm_output  = self.FrameOutput(self)
 
+        self.overwrite_c_btn = tk.Button(self, text='Overwrite configuration',
+                                         command=self.overwrite_c)
+
         # Frames gridding
-        self.menubar.grid(row=0, column=0, sticky='nw')
+        self.menubar.grid(row=0, column=0, sticky='nw', columnspan=2)
         self.frm_waves.grid(row=1, column=0, sticky='nw')
         self.frm_plt_p.grid(row=2, column=0, sticky='nw')
-        self.frm_plt.grid(row=1, column=1, rowspan=self.grid_size()[1]+1)
-        self.frm_process.grid(row=3, column=0)
-        self.frm_output.grid(row=1, column=2)
+        self.frm_plt.grid(row=1, column=1, rowspan=self.grid_size()[1]+2)
+        self.frm_process.grid(row=3, column=0, sticky='nw')
+        self.frm_output.grid(row=4, column=0, sticky='nw')
+        self.overwrite_c_btn.grid(row=5, column=0, sticky='nw')
 
     class FrameMenu(tk.Frame):
         def __init__(self, parent):
@@ -81,7 +87,7 @@ class Root(tk.Tk):
             self.parent = parent
 
             self.settings_mb = tk.Menubutton(self, text='Settings')
-            self.settings_mb.grid(row=0, column=0)
+            # self.settings_mb.grid(row=0, column=0)
 
             self.settings_mn = tk.Menu(self.settings_mb, tearoff=0)
             self.settings_mb['menu'] = self.settings_mn
@@ -97,7 +103,7 @@ class Root(tk.Tk):
                 text='Plot database results',
                 command=lambda: parent.open_window(parent.WindowPlotResults(parent))
             )
-            self.plot_results_btn.grid(row=0, column=1)
+            self.plot_results_btn.grid(row=0, column=0)
 
     class FrameWaves(tk.LabelFrame):
         def __init__(self, parent):
@@ -108,6 +114,7 @@ class Root(tk.Tk):
                 bd=parent.bd,
                 relief=parent.relief,
             )
+            width = 17
 
             self.parent = parent
 
@@ -117,7 +124,8 @@ class Root(tk.Tk):
 
             # Station
             self.station_lbl = tk.Label(self, text='Station(s)')
-            self.station_lbx = tk.Listbox(self, selectmode=tk.MULTIPLE, height=3)
+            self.station_lbx = tk.Listbox(self, selectmode=tk.MULTIPLE,
+                                          height=3, width=width)
             self.station_sb = tk.Scrollbar(self)
             self.station_lbx.config(yscrollcommand=self.station_sb.set,
                                     exportselection=False)
@@ -126,22 +134,23 @@ class Root(tk.Tk):
             # Channel
             self.channel_lbl = tk.Label(self, text='Channel(s)')
 
-            self.channel_lbx = tk.Listbox(self, selectmode=tk.MULTIPLE, height=3)
+            self.channel_lbx = tk.Listbox(self, selectmode=tk.MULTIPLE,
+                                          height=3, width=width)
             self.channel_lbx.config(exportselection=False)
 
             for channel in ['HHE', 'HHN', 'HHZ']:
                 self.channel_lbx.insert(tk.END, channel)
 
             self.starttime_lbl = tk.Label(self, text='Start time')
-            self.starttime_ent = tk.Entry(self)
+            self.starttime_ent = tk.Entry(self, width=width)
             self.starttime_ent.insert(
                 tk.END,
                 (datetime.today()-timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
             )
 
             self.duration_lbl = tk.Label(self, text='Duration [s]')
-            self.duration_ent = tk.Entry(self)
-            self.duration_ent.insert(tk.END, self.master.conf['duration'])
+            self.duration_ent = tk.Entry(self, width=width)
+            self.duration_ent.insert(tk.END, self.master.c.duration)
 
             self.download_btn = tk.Button(
                 self,
@@ -150,7 +159,7 @@ class Root(tk.Tk):
             )
 
             self.volcano_lbl.grid(row=0)
-            self.volcano_om.grid(row=1)
+            self.volcano_om.grid(row=1, column=0)
             self.station_lbl.grid(row=2)
             self.station_lbx.grid(row=3)
             self.station_sb.grid(row=3, column=1)
@@ -162,6 +171,9 @@ class Root(tk.Tk):
             self.duration_ent.grid(row=9)
             self.download_btn.grid(row=10)
 
+            # for child in self.winfo_children():
+            #     child.grid_configure(padx=2, pady=2)
+
         def get_volcanoes(self, conn):
             df = pd.read_sql_query('SELECT volcano FROM volcano;', conn)
             volcanoes = df.volcano.tolist()
@@ -171,7 +183,7 @@ class Root(tk.Tk):
                 self,
                 self.volcanoes_sv,
                 *(volcanoes),
-                command=self.get_stations
+                command=self.get_stations,
             )
             return
 
@@ -211,11 +223,14 @@ class Root(tk.Tk):
             )
             self.stacha_om.configure(state='disabled')
 
-            widgets = [
-                self.stacha_om,
-            ]
-            for row, widget in enumerate(widgets):
-                widget.grid(row=row, column=0)
+            self.spec_cfg_btn = tk.Button(
+                self,
+                text='Settings',
+                command=lambda: parent.open_window(parent.WindowSpecSettings(parent))
+            )
+
+            self.stacha_om.grid()
+            self.spec_cfg_btn.grid(row=0, column=1)
 
     class FramePlot(tk.LabelFrame):
         def __init__(self, parent):
@@ -238,62 +253,85 @@ class Root(tk.Tk):
                 bd=parent.bd,
                 relief=parent.relief,
             )
+            width = 4
 
             self.filter_lf= tk.LabelFrame(
                 self,
                 text='Butterworth bandpass filter',
             )
 
-            self.freqmin_lbl = tk.Label(
-                self.filter_lf,
-                text='Minimum frequency [Hz]',
+            self.freqmin_lbl = tk.Label(self.filter_lf, text='min(f) [Hz]')
+            self.freqmin_svr = tk.IntVar(self)
+            self.freqmin_svr.set(self.master.c.process.freqmin)
+            self.freqmin_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'freqmin', self.freqmin_svr.get()
+                )
             )
-            self.freqmin_ent = tk.Entry(self.filter_lf)
-            self.freqmin_ent.insert(tk.END, self.master.conf['process']['freqmin'])
-
-            self.freqmax_lbl = tk.Label(
-                self.filter_lf,
-                text='Maximum frequency [Hz]',
+            self.freqmin_ent = tk.Entry(
+                self.filter_lf, textvariable=self.freqmin_svr, width=width
             )
-            self.freqmax_ent = tk.Entry(self.filter_lf)
-            self.freqmax_ent.insert(tk.END, self.master.conf['process']['freqmax'])
 
-            self.order_lbl = tk.Label(self.filter_lf, text='Order',)
-            self.order_ent = tk.Entry(self.filter_lf)
-            self.order_ent.insert(tk.END, self.master.conf['process']['order'])
-
-            self.factor_lbl = tk.Label(
-                self,
-                text='Threshold function multiplier',
+            self.freqmax_lbl = tk.Label(self.filter_lf, text='max(f) [Hz]')
+            self.freqmax_svr = tk.IntVar(self)
+            self.freqmax_svr.set(self.master.c.process.freqmax)
+            self.freqmax_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'freqmax', self.freqmax_svr.get()
+                )
             )
-            self.factor_ent = tk.Entry(self)
-            self.factor_ent.insert(tk.END, self.master.conf['process']['factor'])
+            self.freqmax_ent = tk.Entry(
+                self.filter_lf, textvariable=self.freqmax_svr, width=width
+            )
+
+            self.order_lbl = tk.Label(self.filter_lf, text='Order')
+            self.order_svr = tk.IntVar(self)
+            self.order_svr.set(self.master.c.process.order)
+            self.order_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'order', self.order_svr.get()
+                )
+            )
+            self.order_ent = tk.Entry(
+                self.filter_lf, textvariable=self.order_svr, width=width
+            )
+
+            self.factor_lbl = tk.Label(self, text='Threshold multiplier')
+            self.factor_svr = tk.IntVar(self)
+            self.factor_svr.set(self.master.c.process.factor)
+            self.factor_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'factor', self.factor_svr.get()
+                )
+            )
+            self.factor_ent = tk.Entry(
+                self, textvariable=self.factor_svr, width=width
+            )
 
             self.process_btn = tk.Button(
                 self,
-                text='Process',
+                text='Extract spectral peaks',
                 command=parent.process
             )
 
-            widgets = [
-                self.filter_lf,
-                self.factor_lbl,
-                self.factor_ent,
-                self.process_btn
-            ]
-            for row, widget in enumerate(widgets):
-                widget.grid(row=row, column=0)
+            self.filter_lf.grid(row=0, column=0, columnspan=2)
+            self.factor_lbl.grid(row=1, column=0)
+            self.factor_ent.grid(row=1, column=1)
+            self.process_btn.grid(row=2, column=0, columnspan=2)
 
-            widgets = [
-                self.freqmin_lbl,
-                self.freqmin_ent,
-                self.freqmax_lbl,
-                self.freqmax_ent,
-                self.order_lbl,
-                self.order_ent,
-            ]
-            for row, widget in enumerate(widgets):
-                widget.grid(row=row, column=0)
+            self.freqmin_lbl.grid(row=0, column=0)
+            self.freqmax_lbl.grid(row=0, column=1)
+            self.order_lbl.grid(row=0, column=2)
+            self.freqmin_ent.grid(row=1, column=0)
+            self.freqmax_ent.grid(row=1, column=1)
+            self.order_ent.grid(row=1, column=2)
+
+        def set_conf_change(self, var, indx, mode, key, value):
+            self.master.c.process.__setitem__(key, value)
 
     class FrameOutput(tk.LabelFrame):
         def __init__(self, parent):
@@ -328,11 +366,11 @@ class Root(tk.Tk):
 
             self.ip_lbl = tk.Label(self, text='FDSN IP address')
             self.ip_ent = tk.Entry(self)
-            self.ip_ent.insert(tk.END, self.master.conf['fdsn']['ip'])
+            self.ip_ent.insert(tk.END, self.master.c.fdsn.ip)
 
             self.port_lbl = tk.Label(self, text='FDSN port')
             self.port_ent = tk.Entry(self)
-            self.port_ent.insert(tk.END, self.master.conf['fdsn']['port'])
+            self.port_ent.insert(tk.END, self.master.c.fdsn.port)
 
             self.conn_btn = tk.Button(
                 self,
@@ -356,13 +394,142 @@ class Root(tk.Tk):
             for row, widget in enumerate(widgets):
                 widget.grid(row=row, column=0)
 
+    class WindowSpecSettings(tk.Toplevel):
+        def __init__(self, parent):
+            super().__init__(parent)
+            self.title('Spectrogram settings')
+
+            nfft = [2**n for n in range(6, 12)]
+
+            self.window_lf = tk.LabelFrame(self, text='Window')
+            self.yaxis_lf  = tk.LabelFrame(self, text='Y-axis')
+            self.cmap_lf   = tk.LabelFrame(self, text='Color map')
+
+            self.window_lf.grid(row=0, column=0)
+            self.yaxis_lf.grid(row=1, column=0)
+            self.cmap_lf.grid(row=2, column=0)
+
+            ###################################################################
+
+            self.nfft_lb = tk.Label(self.window_lf, text='Window length [samples]')
+            self.nfft_sv = tk.IntVar(self)
+            self.nfft_sv.set(self.master.c.spectrogram.nfft)
+            self.nfft_om = tk.OptionMenu(
+                self.window_lf,
+                self.nfft_sv,
+                *(nfft),
+                command=self.set_nfft
+            )
+
+            self.mult_lbl = tk.Label(self.window_lf, text='Resolution multplier')
+            self.mult_svr = tk.IntVar(self)
+            self.mult_svr.set(self.master.c.spectrogram.mult)
+            self.mult_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'mult', self.mult_svr.get()
+                )
+            )
+            self.mult_ent = tk.Entry(self.window_lf, textvariable=self.mult_svr)
+
+            self.per_lap_lbl = tk.Label(self.window_lf, text='Overlap [%]')
+            self.per_lap_svr = tk.DoubleVar(self)
+            self.per_lap_svr.set(self.master.c.spectrogram.per_lap)
+            self.per_lap_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'per_lap', self.per_lap_svr.get()
+                )
+            )
+            self.per_lap_ent = tk.Entry(self.window_lf, textvariable=self.per_lap_svr)
+
+            self.nfft_lb.grid(row=0, column=0)
+            self.nfft_om.grid(row=1, column=0)
+            self.mult_lbl.grid(row=2, column=0)
+            self.mult_ent.grid(row=3, column=0)
+            self.per_lap_lbl.grid(row=4, column=0)
+            self.per_lap_ent.grid(row=5, column=0)
+
+            ###################################################################
+
+            self.ymin_lbl = tk.Label(self.yaxis_lf, text='min(f) [Hz]')
+            self.ymin_svr = tk.DoubleVar(self)
+            self.ymin_svr.set(self.master.c.spectrogram.ymin)
+            self.ymin_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'ymin', self.ymin_svr.get()
+                )
+            )
+            self.ymin_ent = tk.Entry(self.yaxis_lf, textvariable=self.ymin_svr,
+                                    width=4)
+
+            self.ymax_lbl = tk.Label(self.yaxis_lf, text='min(f) [Hz]')
+            self.ymax_svr = tk.DoubleVar(self)
+            self.ymax_svr.set(self.master.c.spectrogram.ymax)
+            self.ymax_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'ymax', self.ymax_svr.get()
+                )
+            )
+            self.ymax_ent = tk.Entry(self.yaxis_lf, textvariable=self.ymax_svr,
+                                    width=4)
+
+            self.ymin_lbl.grid(row=0, column=0)
+            self.ymin_ent.grid(row=1, column=0)
+            self.ymax_lbl.grid(row=0, column=1)
+            self.ymax_ent.grid(row=1, column=1)
+
+            ###################################################################
+
+            self.cmap_lbl = tk.Label(self.cmap_lf, text='Colormap')
+            self.cmap_svr = tk.StringVar(self)
+            self.cmap_svr.set(self.master.c.spectrogram.cmap)
+            self.cmap_om = tk.OptionMenu(
+                self.cmap_lf,
+                self.cmap_svr,
+                *(plt.colormaps()),
+                command=self.set_cmap
+            )
+
+            self.std_factor_lbl = tk.Label(self.cmap_lf, text='STD multiplier')
+            self.std_factor_svr = tk.IntVar(self)
+            self.std_factor_svr.set(self.master.c.spectrogram.std_factor)
+            self.std_factor_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'std_factor', self.std_factor_svr.get()
+                )
+            )
+            self.std_factor_ent = tk.Entry(self.cmap_lf,
+                                           textvariable=self.std_factor_svr)
+
+            self.cmap_lbl.grid(row=0, column=0)
+            self.cmap_om.grid(row=1, column=0)
+            self.std_factor_lbl.grid(row=2, column=0)
+            self.std_factor_ent.grid(row=3, column=0)
+
+            ###################################################################
+
+
+        def set_nfft(self, event):
+            self.master.c.spectrogram.nfft = self.nfft_sv.get()
+
+        def set_cmap(self, event):
+            self.master.c.spectrogram.cmap = self.cmap_svr.get()
+
+        def set_conf_change(self, var, indx, mode, key, value):
+            self.master.c.spectrogram.__setitem__(key, value)
+
+
     class WindowResults(tk.Toplevel):
         def __init__(self, parent):
             super().__init__()
             self.parent = parent
             self.title('Output')
 
-            self.geometry('400x400')
+            # self.geometry('400x400')
 
             self.channels_lbl = tk.Label(self, text='Channels processed')
             self.channels_lbx = tk.Listbox(self, height=3)
@@ -383,6 +550,9 @@ class Root(tk.Tk):
             self.channels_lbx.grid(row=1)
             self.peaks_lf.grid(row=2)
             self.submit_btn.grid(row=3)
+            header = ['Frequency [Hz]', 'Amplitude [um/s]', 'Q_f']
+
+            table = Table(self.peaks_lf, header, [])
 
             self.channels_lbx.bind("<<ListboxSelect>>", self.create_table)
 
@@ -574,13 +744,13 @@ class Root(tk.Tk):
                 self.toolbar = NavigationToolbar2Tk(self.canvas, self.toolbarFrame)
 
     def set_conf(self):
-        filepath = path.join(path.expanduser('~'), '.tonus.json')
+        self.filepath = path.join(path.expanduser('~'), '.tonus.json')
         try:
-            with open(filepath) as f:
-                self.conf = json.load(f)
+            with open(self.filepath) as f:
+                self.c = Conf(json.load(f))
         except Exception as e:
             text=(
-                f'Configuration {filepath} file missing. '
+                f'Configuration {self.filepath} file missing. '
                 'Copy it from tonus/ and modify it.'
             )
             tk.messagebox.showwarning('Configuration file missing', text)
@@ -674,7 +844,7 @@ class Root(tk.Tk):
         )
 
         self.st = self.client.get_waveforms(
-            self.conf['network'], station, '*', channel,
+            self.c.network, station, '*', channel,
             self.starttime, self.endtime, attach_response=True
         )
         self.pre_process()
@@ -710,43 +880,53 @@ class Root(tk.Tk):
         self.tr = self.st.select(station=station, channel=channel)[0]
         self.plot()
 
+    def spectrogram(self,
+        tr, ax,
+        dbscale=True,
+        get_v=True,
+    ):
+        nfft       = self.c.spectrogram.nfft
+        mult       = self.c.spectrogram.mult
+        per_lap    = self.c.spectrogram.per_lap
+        ylim       = (self.c.spectrogram.ymin, self.c.spectrogram.ymax)
+        cmap       = self.c.spectrogram.cmap
+        std_factor = self.c.spectrogram.std_factor
+
+        nlap = int(nfft * float(per_lap))
+
+        Sxx, f, t = mlab.specgram(tr.data, Fs=tr.stats.sampling_rate, NFFT=nfft,
+                                  noverlap=nlap, pad_to=mult * nfft)
+
+         # calculate half bin width
+        halfbin_time = (t[1] - t[0]) / 2.0
+        halfbin_freq = (f[1] - f[0]) / 2.0
+        f = np.concatenate((f, [f[-1] + 2 * halfbin_freq]))
+        t = np.concatenate((t, [t[-1] + 2 * halfbin_time]))
+        # center bin
+        t -= halfbin_time
+        f -= halfbin_freq
+        if get_v:
+            data = np.log(Sxx.flatten())
+            data = data[np.isfinite(data)]
+            hist, bin_edges = np.histogram(data, bins=100)
+            idx = np.argmax(hist)
+            mode = (bin_edges[idx] + bin_edges[idx+1])/2
+            vmin = mode-std_factor*data.std()
+            vmax = mode+std_factor*data.std()
+        else:
+            vmin = None
+            vmax = None
+
+        if dbscale:
+            specgram = ax.pcolormesh(t, f, np.log(Sxx), cmap=cmap, vmin=vmin,
+                                      vmax=vmax)
+        else:
+            specgram = ax.pcolormesh(t, f, (Sxx), cmap=cmap, vmin=vmin, vmax=vmax)
+
+        ax.set_ylim(ylim)
+        return
+
     def plot(self):
-        def spectrogram(tr, ax, get_v=True, nfft=256, mult=8, per_lap=.8,
-                        ylim=(0.1, 30), dbscale=True, cmap='turbo', std_factor=3):
-
-            nlap = int(nfft * float(per_lap))
-
-            Sxx, f, t = mlab.specgram(tr.data, Fs=tr.stats.sampling_rate, NFFT=nfft,
-                                      noverlap=nlap, pad_to=mult * nfft)
-
-             # calculate half bin width
-            halfbin_time = (t[1] - t[0]) / 2.0
-            halfbin_freq = (f[1] - f[0]) / 2.0
-            f = np.concatenate((f, [f[-1] + 2 * halfbin_freq]))
-            t = np.concatenate((t, [t[-1] + 2 * halfbin_time]))
-            # center bin
-            t -= halfbin_time
-            f -= halfbin_freq
-            if get_v:
-                data = np.log(Sxx.flatten())
-                data = data[np.isfinite(data)]
-                hist, bin_edges = np.histogram(data, bins=100)
-                idx = np.argmax(hist)
-                mode = (bin_edges[idx] + bin_edges[idx+1])/2
-                vmin = mode-std_factor*data.std()
-                vmax = mode+std_factor*data.std()
-            else:
-                vmin = None
-                vmax = None
-
-            if dbscale:
-                specgram = ax.pcolormesh(t, f, np.log(Sxx), cmap=cmap, vmin=vmin,
-                                          vmax=vmax)
-            else:
-                specgram = ax.pcolormesh(t, f, (Sxx), cmap=cmap, vmin=vmin, vmax=vmax)
-
-            ax.set_ylim(ylim)
-            return
 
         tr = self.tr
         stacha = f'{tr.stats.station} {tr.stats.channel}'
@@ -782,7 +962,7 @@ class Root(tk.Tk):
         _ax1.set_ylabel('Amplitude [m/s]')
 
         ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
-        spectrogram(tr, ax2)
+        self.spectrogram(tr, ax2)
         ax2.set_ylabel('Frequency [Hz]')
         ax2.set_xlabel('Time [s]')
 
@@ -947,11 +1127,24 @@ class Root(tk.Tk):
                         {tornillo_id}, {round(f, 3)}, {round(a*1e6, 2)}, {round(q, 2)})
                         """
                     )
+
+                submitted = True
             except Exception as e:
                 tk.messagebox.showerror('Data already submitted', e)
                 # self.conn.commit()
 
         self.conn.commit()
+        if submitted:
+            tk.messagebox.showinfo('Submission succesful',
+                                   'Data has been written to the database')
+
+    def overwrite_c(self):
+        with open(self.filepath, 'w') as f:
+            json.dump(self.c, f, indent=4)
+        tk.messagebox.showinfo(
+            'Configuration saved',
+            f'Current settings saved in the {self.filepath} file'
+        )
 
 
 class Table:
