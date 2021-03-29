@@ -1,9 +1,9 @@
 # Installation
 
-1. Create a `conda` environment with dependencies:  `obspy`, `pandas` and `psycopg2`
+1. Create a `conda` environment with dependencies:
 
     ```
-    $ conda create -n tonus pandas psycopg2 matplotlib=3.3.2
+    $ conda create -n myenv pandas psycopg2 matplotlib=3.3.2
     $ conda activate tonus
     (tonus) $ conda install -c conda-forge obspy
     ```
@@ -17,8 +17,8 @@
 3. Install the package in the `conda` environment created in step 1:
 
     ```
-    (env) $ cd tonus
-    (env) $ pip install -e .
+    (myenv) $ cd tonus
+    (myenv) $ pip install -e .
     ```
 
 4. Create your configuration file `~/.tonus.json`, by copying *and* modifying the following:
@@ -59,5 +59,5 @@
 
 Run the program:
 
-    $ conda activate tonus
+    $ conda activate myenv
     (tonus) $ tonus
