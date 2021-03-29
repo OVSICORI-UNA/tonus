@@ -59,7 +59,5 @@
 
 Run the program:
 
-    ```
     $ conda activate tonus
     (tonus) $ tonus
-    ```
