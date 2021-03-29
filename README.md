@@ -60,4 +60,4 @@
 Run the program:
 
     $ conda activate myenv
-    (tonus) $ tonus
+    (myenv) $ tonus
