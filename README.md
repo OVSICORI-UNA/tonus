@@ -25,22 +25,32 @@
     ```
     {
         "fdsn": {
-            "ip"   : "",
-            "port" : ""
+            "ip": "",
+            "port": ""
         },
         "db": {
-            "host"     : "",
-            "user"     : "",
-            "password" : "",
-            "database" : ""
+            "host": "",
+            "user": "",
+            "password": "",
+            "database": ""
         },
-        "network" : "OV,TC",
-        "duration" : 40,
-        "process"  : {
-            "freqmin" : 1,
-            "freqmax" : 20,
-            "order"   : 4,
-            "factor"  : 4
+        "network": "OV,TC",
+        "duration": 40,
+        "spectrogram": {
+            "nfft": 256,
+            "mult": 8,
+            "per_lap": 0.9,
+            "ymin": 0.1,
+            "ymax": 30,
+            "dbscale": true,
+            "cmap": "rainbow",
+            "std_factor": 4
+        },
+        "process": {
+            "freqmin": 1,
+            "freqmax": 15,
+            "order": 4,
+            "factor": 4
         }
     }
     ```
