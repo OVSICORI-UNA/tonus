@@ -1,6 +1,6 @@
 import numpy as np
 from obspy import UTCDateTime, Trace, Stream
-from scipy.signal import butter, find_peaks, lfilter, savgol_filter
+from scipy.signal import butter, find_peaks, lfilter, savgol_filter, medfilt
 from scipy.stats import linregress
 
 
@@ -138,8 +138,9 @@ def get_peaks(tr, freqmin, freqmax, order, factor, distance_Hz=0.3,
         window_length += 1
 
     # Smooth FFT
-    fft_smooth = savgol_filter(fft_norm, window_length=window_length,
-                               polyorder=1)
+    # fft_smooth = savgol_filter(fft_norm, window_length=window_length,
+    #                            polyorder=1)
+    fft_smooth = medfilt(fft_norm, kernel_size=window_length)
     # Find peaks
     peaks, properties = find_peaks(fft_norm, height=(factor*fft_smooth, None),
                                    distance=distance,

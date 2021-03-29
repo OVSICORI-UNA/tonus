@@ -522,7 +522,6 @@ class Root(tk.Tk):
         def set_conf_change(self, var, indx, mode, key, value):
             self.master.c.spectrogram.__setitem__(key, value)
 
-
     class WindowResults(tk.Toplevel):
         def __init__(self, parent):
             super().__init__()
@@ -667,8 +666,10 @@ class Root(tk.Tk):
 
                 query = f"""
                 SELECT
-                    tornillo.t1, tornillo_peaks.frequency,
-                    channel.station, channel.channel, tornillo.channel_id
+                    tornillo.t1, tornillo.channel_id,
+                    tornillo_peaks.frequency, tornillo_peaks.q_f,
+                    tornillo_peaks.amplitude,
+                    channel.station, channel.channel
                 FROM
                     tornillo_peaks
                 INNER JOIN
@@ -716,24 +717,37 @@ class Root(tk.Tk):
                 df = self.master.df
                 df = df[df.channel_id.isin(channel_ids)]
 
-                self.fig = plt.figure(figsize=(6, 3))
-                self.fig.subplots_adjust(left=.1, bottom=.1, right=.9, top=.98,
-                                    wspace=.2, hspace=.2)
-
+                self.fig = plt.figure(figsize=(6, 6))
+                self.fig.subplots_adjust(left=.1, bottom=.07, right=.9, top=.98,
+                                    wspace=.2, hspace=.15)
                 try:
-                    ax.remove()
+                    ax1.remove()
                 except:
                     pass
 
-                ax = self.fig.add_subplot(111)
-                ax.set_ylabel('Frequency [Hz]')
+                ax1 = self.fig.add_subplot(211)
+                ax1.set_ylabel('Frequency [Hz]')
+
 
                 for stacha in stachas:
                     _df = df[df.stacha == stacha]
-                    ax.scatter(_df.t1, _df.frequency, label=stacha, lw=0.5,
+
+                    ax1.scatter(
+                        _df.t1, _df.frequency,
+                        label=stacha,
+                        lw=0.5,
+                        edgecolor='grey',
+                    )
+
+                ax1.legend()
+
+                ax2 = self.fig.add_subplot(212)
+                ax2.set_ylabel('')
+                for stacha in stachas:
+                    _df = df[df.stacha == stacha]
+                    ax2.scatter(_df.t1, _df.q_f, label=stacha, lw=0.5,
                                edgecolor='grey')
 
-                ax.legend()
                 self.canvas = FigureCanvasTkAgg(self.fig,
                                                 master=self.master.plot_db_lf)
                 self.canvas.draw()
@@ -871,9 +885,9 @@ class Root(tk.Tk):
             self.results[stacha] = {}
 
     def pre_process(self):
-        self.st.detrend()
-        self.st.remove_response()
         self.st.filter('highpass', freq=0.5)
+        self.st.remove_response()
+        self.st.detrend()
 
     def select_trace(self, event):
         station, channel = tuple(self.frm_plt_p.stacha_sv.get().split())
