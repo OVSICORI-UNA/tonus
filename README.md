@@ -4,7 +4,7 @@
 
     ```
     $ conda create -n myenv pandas psycopg2 matplotlib=3.3.2
-    $ conda activate tonus
+    $ conda activate myenv
     (myenv) $ conda install -c conda-forge obspy
     ```
 
