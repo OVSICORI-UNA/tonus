@@ -449,7 +449,7 @@ class Root(tk.Tk):
                     self.port_ent.get(),
                 )
             )
-            self.ok_btn = tk.Button(self, text='OK', command=self.destroy)
+            self.ok_btn = tk.Button(self, text='OK', command=self._destroy)
 
             widgets = [
                 self.cfg_file_msg,
@@ -463,12 +463,16 @@ class Root(tk.Tk):
             for row, widget in enumerate(widgets):
                 widget.grid(row=row, column=0)
 
+        def _destroy(self):
+            self.master.focus_force()
+            self.destroy()
+
     class WindowSpecSettings(tk.Toplevel):
         def __init__(self, parent):
             super().__init__(parent)
             self.title('Spectrogram settings')
 
-            quit_btn = tk.Button(self, text='Close', command=self.destroy)
+            quit_btn = tk.Button(self, text='Close', command=self._destroy)
 
             self.window_lf = tk.LabelFrame(self, text='Window')
             self.yaxis_lf  = tk.LabelFrame(self, text='Y-axis')
@@ -593,13 +597,17 @@ class Root(tk.Tk):
         def set_conf_change(self, var, indx, mode, key, value):
             self.master.c.spectrogram.__setitem__(key, value)
 
+        def _destroy(self):
+            self.master.focus_force()
+            self.destroy()
+
     class WindowResults(tk.Toplevel):
         def __init__(self, parent):
             super().__init__()
             self.parent = parent
             self.title('Output')
 
-            self.quit_btn = tk.Button(self, text='Close', command=self.destroy)
+            self.quit_btn = tk.Button(self, text='Close', command=self._destroy)
 
             self.channels_lbl = tk.Label(self, text='Channels processed')
             self.channels_lbx = tk.Listbox(self, height=3)
@@ -616,7 +624,7 @@ class Root(tk.Tk):
             self.submit_btn = tk.Button(
                 self,
                 text='Submit',
-                command=parent.submit
+                command=self.submit
             )
 
             self.quit_btn.grid(row=0)
@@ -629,6 +637,10 @@ class Root(tk.Tk):
             table = Table(self.peaks_lf, header, [])
 
             self.channels_lbx.bind("<<ListboxSelect>>", self.create_table)
+
+        def _destroy(self):
+            self.master.focus_force()
+            self.destroy()
 
         def create_table(self, event):
             selection = self.channels_lbx.curselection()
@@ -659,6 +671,94 @@ class Root(tk.Tk):
 
             table = Table(self.peaks_lf, header, columns)
 
+        def submit(self):
+            submitted = False
+
+            cur = self.master.conn.cursor()
+
+            # Clean channels not picked
+
+            results = {}
+            for stacha in self.master.results.keys():
+                if self.master.results[stacha] != {}:
+                    results[stacha] = self.master.results[stacha]
+            self.master.results = results
+
+            if self.master.event_id is None:
+                volcano = self.master.frm_waves.volcanoes_sv.get()
+                cur.execute(f"SELECT id FROM volcano WHERE volcano = '{volcano}';")
+                volcano_id = cur.fetchone()[0]
+
+                starttimes, endtimes = [], []
+                for stacha in self.master.results.keys():
+                    starttimes.append(UTCDateTime(self.master.results[stacha]['t1']))
+                    endtimes.append(UTCDateTime(self.master.results[stacha]['t3']))
+                starttime = min(starttimes).datetime
+                endtime   = max(endtimes).datetime
+
+                sql_str = f"""
+                INSERT INTO event(starttime, endtime, volcano_id)
+                VALUES('{starttime}', '{endtime}', {volcano_id})
+                RETURNING id
+                """
+                cur.execute(sql_str)
+                self.master.event_id = cur.fetchone()[0]
+
+            for stacha in self.master.results.keys():
+                station, channel = stacha.split()
+                cur.execute(
+                   f"""
+                    SELECT id FROM channel
+                    WHERE channel = '{channel}'
+                    AND station = '{station}';
+                    """
+                )
+                channel_id = cur.fetchone()[0]
+
+                t1 = UTCDateTime(self.master.results[stacha]['t1']).datetime
+                t2 = UTCDateTime(self.master.results[stacha]['t2']).datetime
+                t3 = UTCDateTime(self.master.results[stacha]['t3']).datetime
+                q_alpha = self.master.results[stacha]['q_alpha']
+
+                sql_str = f"""
+                INSERT INTO
+                    tornillo(channel_id, t1, t2, t3, event_id, q_alpha)
+                VALUES(
+                    {channel_id}, '{t1}', '{t2}', '{t3}',
+                    {self.master.event_id}, {q_alpha}
+                )
+                RETURNING
+                    id
+                """
+                try:
+                    cur.execute(sql_str)
+                    tornillo_id = cur.fetchone()[0]
+
+                    frequency = self.master.results[stacha]['peaks']['frequency']
+                    amplitude = self.master.results[stacha]['peaks']['amplitude']
+                    q_f       = self.master.results[stacha]['peaks']['q_f']
+
+                    for f, a, q in zip(frequency, amplitude, q_f):
+                        cur.execute(
+                            f"""
+                            INSERT INTO
+                                tornillo_peaks(tornillo_id, frequency,
+                                amplitude, q_f)
+                            VALUES(
+                                {tornillo_id}, {round(f, 3)},
+                                {round(a*1e6, 2)}, {round(q, 2)})
+                            """
+                        )
+                    submitted = True
+                except Exception as e:
+                    tk.messagebox.showerror('Data already submitted', e)
+                    self.master.conn.commit()
+
+            self.master.conn.commit()
+            if submitted:
+                tk.messagebox.showinfo('Submission succesful',
+                                       'Data has been written to the database')
+
     class WindowPlotResults(tk.Toplevel):
         def __init__(self, parent):
             super().__init__()
@@ -666,7 +766,7 @@ class Root(tk.Tk):
             self.conn = parent.conn
             self.title('Plot database results')
 
-            self.quit_btn = tk.Button(self, text='Close', command=self.destroy)
+            self.quit_btn = tk.Button(self, text='Close', command=self._destroy)
             self.selec_frm = self.FrameSelection(self, parent.conn)
 
             self.plot_selec_frm = self.FramePlotSelection(self, parent.conn)
@@ -836,6 +936,10 @@ class Root(tk.Tk):
                 self.toolbarFrame = tk.Frame(master=self.master.plot_db_lf)
                 self.toolbarFrame.grid(row=1, column=0)
                 self.toolbar = NavigationToolbar2Tk(self.canvas, self.toolbarFrame)
+
+        def _destroy(self):
+            self.master.focus_force()
+            self.destroy()
 
     def set_conf(self):
         self.filepath = path.join(path.expanduser('~'), '.tonus.json')
@@ -1027,6 +1131,7 @@ class Root(tk.Tk):
         return
 
     def plot(self):
+
         tr = self.tr
         stacha = f'{tr.stats.station} {tr.stats.channel}'
 
@@ -1087,6 +1192,7 @@ class Root(tk.Tk):
         self.toolbarFrame = tk.Frame(master=self.frm_plt)
         self.toolbarFrame.grid(row=1, column=0)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.toolbarFrame)
+        self.toolbar.focus_force()
 
         self.canvas.mpl_connect('key_press_event', key_press_handler)
 
@@ -1156,86 +1262,6 @@ class Root(tk.Tk):
         ax3.set_xticks([])
         ax3.set_xlabel('Normalized amplitude')
         self.canvas.draw()
-
-    def submit(self):
-        cur = self.conn.cursor()
-
-        # Clean channels not picked
-
-        results = {}
-        for stacha in self.results.keys():
-            if self.results[stacha] != {}:
-                results[stacha] = self.results[stacha]
-        self.results = results
-
-        if self.event_id is None:
-            volcano = self.frm_waves.volcanoes_sv.get()
-            cur.execute(f"SELECT id FROM volcano WHERE volcano = '{volcano}';")
-            volcano_id = cur.fetchone()[0]
-
-            starttimes, endtimes = [], []
-            for stacha in self.results.keys():
-                starttimes.append(UTCDateTime(self.results[stacha]['t1']))
-                endtimes.append(UTCDateTime(self.results[stacha]['t3']))
-            starttime = min(starttimes).datetime
-            endtime   = max(endtimes).datetime
-
-            sql_str = f"""
-            INSERT INTO event(starttime, endtime, volcano_id)
-            VALUES('{starttime}', '{endtime}', {volcano_id})
-            RETURNING id
-            """
-            cur.execute(sql_str)
-            self.event_id = cur.fetchone()[0]
-
-        for stacha in self.results.keys():
-            station, channel = stacha.split()
-            cur.execute(
-               f"""
-                SELECT id FROM channel
-                WHERE channel = '{channel}'
-                AND station = '{station}';
-                """
-            )
-            channel_id = cur.fetchone()[0]
-
-            t1 = UTCDateTime(self.results[stacha]['t1']).datetime
-            t2 = UTCDateTime(self.results[stacha]['t2']).datetime
-            t3 = UTCDateTime(self.results[stacha]['t3']).datetime
-            q_alpha = self.results[stacha]['q_alpha']
-
-            sql_str = f"""
-            INSERT INTO tornillo(channel_id, t1, t2, t3, event_id, q_alpha)
-            VALUES({channel_id}, '{t1}', '{t2}', '{t3}', {self.event_id}, {q_alpha})
-            RETURNING id
-            """
-            try:
-                cur.execute(sql_str)
-                tornillo_id = cur.fetchone()[0]
-
-                frequency = self.results[stacha]['peaks']['frequency']
-                amplitude = self.results[stacha]['peaks']['amplitude']
-                q_f       = self.results[stacha]['peaks']['q_f']
-
-                for f, a, q in zip(frequency, amplitude, q_f):
-                    cur.execute(
-                        f"""
-                        INSERT INTO tornillo_peaks(tornillo_id, frequency,
-                        amplitude, q_f)
-                        VALUES(
-                        {tornillo_id}, {round(f, 3)}, {round(a*1e6, 2)}, {round(q, 2)})
-                        """
-                    )
-
-                submitted = True
-            except Exception as e:
-                tk.messagebox.showerror('Data already submitted', e)
-                # self.conn.commit()
-
-        self.conn.commit()
-        if submitted:
-            tk.messagebox.showinfo('Submission succesful',
-                                   'Data has been written to the database')
 
     def overwrite_c(self):
         with open(self.filepath, 'w') as f:
