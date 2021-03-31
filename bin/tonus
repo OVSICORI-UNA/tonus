@@ -105,6 +105,13 @@ class Root(tk.Tk):
             )
             self.plot_results_btn.grid(row=0, column=0)
 
+            self.quit_btn = tk.Button(
+                self,
+                text='Quit',
+                command=self.parent.destroy
+            )
+            self.quit_btn.grid(row=0, column=1)
+
     class FrameWaves(tk.LabelFrame):
         def __init__(self, parent):
             super().__init__(
@@ -123,10 +130,12 @@ class Root(tk.Tk):
             self.get_volcanoes(parent.conn)
 
             # Station
+            self.stacha_lf = tk.LabelFrame(self, text='Station/channel')
+
             self.station_lbl = tk.Label(self, text='Station(s)')
-            self.station_lbx = tk.Listbox(self, selectmode=tk.MULTIPLE,
-                                          height=3, width=width)
-            self.station_sb = tk.Scrollbar(self)
+            self.station_lbx = tk.Listbox(self.stacha_lf, selectmode=tk.MULTIPLE,
+                                          height=3, width=7)
+            self.station_sb = tk.Scrollbar(self.stacha_lf)
             self.station_lbx.config(yscrollcommand=self.station_sb.set,
                                     exportselection=False)
             self.station_sb.config(command=self.station_lbx.yview)
@@ -134,12 +143,35 @@ class Root(tk.Tk):
             # Channel
             self.channel_lbl = tk.Label(self, text='Channel(s)')
 
-            self.channel_lbx = tk.Listbox(self, selectmode=tk.MULTIPLE,
-                                          height=3, width=width)
+            self.channel_lbx = tk.Listbox(self.stacha_lf, selectmode=tk.MULTIPLE,
+                                          height=3, width=7)
             self.channel_lbx.config(exportselection=False)
 
             for channel in ['HHE', 'HHN', 'HHZ']:
                 self.channel_lbx.insert(tk.END, channel)
+
+            # Swarm file for datetimes
+            self.swarm_lf = tk.LabelFrame(self, text='Swarm file')
+            self.swarm_check_iv = tk.IntVar(self, value=0)
+            self.swarm_cb = tk.Checkbutton(
+                self.swarm_lf,
+                # text='Swarm file',
+                variable=self.swarm_check_iv,
+                command=self.switch
+            )
+
+            self.swarm_btn = tk.Button(
+                self.swarm_lf,
+                text='Select file',
+                command=self.select_file
+            )
+            self.swarm_btn.config(state='disabled')
+
+            self.swarm_lbx = tk.Listbox(self.swarm_lf, height=3, width=width)
+            self.swarm_sb = tk.Scrollbar(self.swarm_lf)
+            self.swarm_lbx.config(yscrollcommand=self.swarm_sb.set,
+                                    exportselection=False)
+            self.swarm_sb.config(command=self.swarm_lbx.yview)
 
             self.starttime_lbl = tk.Label(self, text='Start time')
             self.starttime_ent = tk.Entry(self, width=width)
@@ -160,17 +192,24 @@ class Root(tk.Tk):
 
             self.volcano_lbl.grid(row=0)
             self.volcano_om.grid(row=1, column=0)
-            self.station_lbl.grid(row=2)
-            self.station_lbx.grid(row=3)
-            self.station_sb.grid(row=3, column=1)
-            self.channel_lbl.grid(row=4, column=0)
-            self.channel_lbx.grid(row=5)
-            self.starttime_lbl.grid(row=6)
-            self.starttime_ent.grid(row=7)
-            self.duration_lbl.grid(row=8)
-            self.duration_ent.grid(row=9)
-            self.download_btn.grid(row=10)
+            self.stacha_lf.grid(row=2)
+            self.swarm_lf.grid(row=6)
+            self.starttime_lbl.grid(row=7)
+            self.starttime_ent.grid(row=8)
+            self.duration_lbl.grid(row=9)
+            self.duration_ent.grid(row=10)
+            self.download_btn.grid(row=11)
 
+            # self.station_lbl.grid(row=2)
+            self.station_lbx.grid(row=0)
+            self.station_sb.grid(row=0, column=1)
+            # self.channel_lbl.grid(row=2, column=2)
+            self.channel_lbx.grid(row=0, column=2)
+
+            self.swarm_cb.grid(row=0)
+            self.swarm_btn.grid(row=0, column=1)
+            self.swarm_lbx.grid(row=1, column=0, columnspan=2)
+            self.swarm_sb.grid(row=1, column=2)
             # for child in self.winfo_children():
             #     child.grid_configure(padx=2, pady=2)
 
@@ -202,6 +241,33 @@ class Root(tk.Tk):
             self.station_lbx.delete(0, tk.END)
             for station in stations:
                 self.station_lbx.insert(tk.END, station)
+
+        def switch(self):
+            if self.swarm_btn['state'] == 'normal':
+                self.swarm_btn['state'] = 'disabled'
+                self.swarm_lbx['state'] = 'disabled'
+                self.starttime_ent['state'] = 'normal'
+            else:
+                self.swarm_btn['state'] = 'normal'
+                self.swarm_lbx['state'] = 'normal'
+                self.starttime_ent['state'] = 'disabled'
+
+        def select_file(self):
+            filetypes = (
+            ('Comma separated values', '*.csv'),
+            ('All files', '*.*')
+            )
+
+            self.swarm_file = tk.filedialog.askopenfilename(
+                title='Open Swarm labels file',
+                initialdir='/Users/leo/Playground/tor_lph_distinction',
+                filetypes=filetypes
+            )
+
+            df = pd.read_csv(self.swarm_file, usecols=[0], names=['datetime'])
+            self.swarm_lbx.delete(0, tk.END)
+            for i, row in df.iterrows():
+                self.swarm_lbx.insert(tk.END, row.datetime)
 
     class FramePlotParams(tk.LabelFrame):
         def __init__(self, parent):
@@ -728,26 +794,23 @@ class Root(tk.Tk):
                 ax1 = self.fig.add_subplot(211)
                 ax1.set_ylabel('Frequency [Hz]')
 
+                ax2 = self.fig.add_subplot(212, sharex=ax1)
+                ax2.set_ylabel('Q')
+
+                smin, smax = 1, 50
 
                 for stacha in stachas:
                     _df = df[df.stacha == stacha]
 
-                    ax1.scatter(
-                        _df.t1, _df.frequency,
-                        label=stacha,
-                        lw=0.5,
-                        edgecolor='grey',
-                    )
+                    s=np.linspace(smin, smax, len(np.log(_df.amplitude)))
+
+                    ax1.scatter(_df.t1, _df.frequency, label=stacha, lw=0.5,
+                                edgecolor='grey', s=s,)
+
+                    ax2.scatter(_df.t1, _df.q_f, label=stacha, lw=0.5,
+                               edgecolor='grey', s=s)
 
                 ax1.legend()
-
-                ax2 = self.fig.add_subplot(212)
-                ax2.set_ylabel('')
-                for stacha in stachas:
-                    _df = df[df.stacha == stacha]
-                    ax2.scatter(_df.t1, _df.q_f, label=stacha, lw=0.5,
-                               edgecolor='grey')
-
                 self.canvas = FigureCanvasTkAgg(self.fig,
                                                 master=self.master.plot_db_lf)
                 self.canvas.draw()
@@ -756,6 +819,7 @@ class Root(tk.Tk):
                 self.toolbarFrame = tk.Frame(master=self.master.plot_db_lf)
                 self.toolbarFrame.grid(row=1, column=0)
                 self.toolbar = NavigationToolbar2Tk(self.canvas, self.toolbarFrame)
+
 
     def set_conf(self):
         self.filepath = path.join(path.expanduser('~'), '.tonus.json')
@@ -788,7 +852,13 @@ class Root(tk.Tk):
     def check_event(self):
         volcano = self.frm_waves.volcanoes_sv.get()
 
-        self.starttime = UTCDateTime(self.frm_waves.starttime_ent.get())
+        if self.frm_waves.starttime_ent['state'] == 'disabled':
+            selection = self.frm_waves.swarm_lbx.curselection()
+            self.starttime = UTCDateTime(
+                self.frm_waves.swarm_lbx.get(selection[0])
+            ) - 10
+        else:
+            self.starttime = UTCDateTime(self.frm_waves.starttime_ent.get())
         duration = float(self.frm_waves.duration_ent.get())
         self.endtime = self.starttime + duration
 
@@ -885,9 +955,9 @@ class Root(tk.Tk):
             self.results[stacha] = {}
 
     def pre_process(self):
-        self.st.filter('highpass', freq=0.5)
-        self.st.remove_response()
         self.st.detrend()
+        self.st.remove_response()
+        self.st.filter('highpass', freq=0.5)
 
     def select_trace(self, event):
         station, channel = tuple(self.frm_plt_p.stacha_sv.get().split())
@@ -941,7 +1011,6 @@ class Root(tk.Tk):
         return
 
     def plot(self):
-
         tr = self.tr
         stacha = f'{tr.stats.station} {tr.stats.channel}'
 
