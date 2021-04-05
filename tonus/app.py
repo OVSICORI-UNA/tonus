@@ -16,6 +16,7 @@ from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk
 )
 from matplotlib.backend_bases import key_press_handler
+from matplotlib.widgets import MultiCursor
 import numpy as np
 from obspy import UTCDateTime
 from obspy.clients.fdsn import Client
@@ -656,7 +657,7 @@ class Root(tk.Tk):
             ]
 
             amplitude = [
-                round(a*1e6, 2) for a in
+                round(a, 2) for a in
                 self.parent.results[stacha]['peaks']['amplitude']
             ]
 
@@ -746,7 +747,7 @@ class Root(tk.Tk):
                                 amplitude, q_f)
                             VALUES(
                                 {tornillo_id}, {round(f, 3)},
-                                {round(a*1e6, 2)}, {round(q, 2)})
+                                {a}, {round(q, 2)})
                             """
                         )
                     submitted = True
@@ -776,7 +777,7 @@ class Root(tk.Tk):
             self.quit_btn.grid(row=0, column=0)
             self.selec_frm.grid(row=1, column=0)
             self.plot_selec_frm.grid(row=2, column=0)
-            self.plot_db_lf.grid(row=1, column=1, rowspan=self.grid_size()[1]+1)
+            self.plot_db_lf.grid(row=0, column=1, rowspan=self.grid_size()[1]+1)
 
         class FrameSelection(tk.LabelFrame):
             def __init__(self, parent, conn):
@@ -871,6 +872,27 @@ class Root(tk.Tk):
                 for stacha in df.stacha.unique():
                     self.master.plot_selec_frm.stacha_lbx.insert(tk.END, stacha)
 
+                query = f"""
+                SELECT
+                    event.starttime
+                FROM
+                    event
+                INNER JOIN
+                    tornillo ON tornillo.event_id= event.id
+                INNER JOIN
+                    channel ON tornillo.channel_id = channel.id
+                WHERE
+                    tornillo.channel_id IN ({','.join(channel_ids)});
+                """
+                df = pd.read_sql_query(query, self.conn)
+                df.index = df.starttime
+
+                hist = df.drop(df.columns[:-1], axis=1)
+                hist.columns = ['n']
+                hist = hist.resample('D').count()
+                self.master.hist = hist
+
+
         class FramePlotSelection(tk.LabelFrame):
             def __init__(self, parent, conn):
                 super().__init__(parent, text='2. Plotting')
@@ -897,7 +919,7 @@ class Root(tk.Tk):
                 df = self.master.df
                 df = df[df.channel_id.isin(channel_ids)]
 
-                self.fig = plt.figure(figsize=(6, 6))
+                self.fig = plt.figure(figsize=(6, 6.5))
                 self.fig.subplots_adjust(left=.1, bottom=.07, right=.9, top=.98,
                                     wspace=.2, hspace=.15)
                 try:
@@ -905,32 +927,50 @@ class Root(tk.Tk):
                 except:
                     pass
 
-                ax1 = self.fig.add_subplot(211)
+                ax1 = self.fig.add_subplot(411)
                 ax1.set_ylabel('Frequency [Hz]')
 
-                ax2 = self.fig.add_subplot(212, sharex=ax1)
+                ax2 = self.fig.add_subplot(412, sharex=ax1)
                 ax2.set_ylabel('Q')
 
-                smin, smax = 1, 50
+                ax3 = self.fig.add_subplot(413, sharex=ax1)
+                ax3.set_ylabel('Amplitude [$\mu m/s$]')
+
+                ax4 = self.fig.add_subplot(414, sharex=ax1)
+                ax4.set_ylabel('Number of daily events')
+
+                smin, smax = 10, 50
                 alpha = 0.5
+
+                df = df[~df.isin([np.nan, np.inf, -np.inf]).any(1)]
 
                 for stacha in stachas:
                     _df = df[df.stacha == stacha]
 
-                    s=np.linspace(smin, smax, len(np.log(_df.amplitude)))
+                    # amin = np.log(_df.amplitude.min())
+                    # amax = np.log(_df.amplitude.max())
+
+                    # s = [(smax-smin)/(amax-amin)*a for a in np.log(_df.amplitude)]
+                    s = 25
 
                     ax1.scatter(_df.t1, _df.frequency, label=stacha, lw=0.5,
-                                edgecolor='grey', s=s,)
-                    ax1.grid('on', alpha=alpha)
-
+                                edgecolor='grey', s=s)
                     ax2.scatter(_df.t1, _df.q_f, label=stacha, lw=0.5,
                                edgecolor='grey', s=s)
-                    ax2.grid('on', alpha=alpha)
+                    ax3.scatter(_df.t1, _df.amplitude, label=stacha, lw=0.5,
+                               edgecolor='grey', s=s)
+                    ax3.set_yscale('log')
 
+                ax4.bar(self.master.hist.index, self.master.hist.n,
+                        edgecolor='gray', linewidth=0.3)
+
+                for ax in self.fig.get_axes():
+                    ax.grid('on', alpha=alpha)
                 ax1.legend()
                 self.canvas = FigureCanvasTkAgg(self.fig,
                                                 master=self.master.plot_db_lf)
-                self.canvas.draw()
+                # self.canvas.draw()
+                self.canvas.show()
                 self.canvas.get_tk_widget().grid(row=0, column=0)
 
                 self.toolbarFrame = tk.Frame(master=self.master.plot_db_lf)
@@ -1141,17 +1181,17 @@ class Root(tk.Tk):
         if len(time) > len(tr.data):
             time = time[:-1]
 
-        fig = plt.figure(figsize=(8, 6))
+        self.fig = plt.figure(figsize=(8, 6))
 
-        fig.subplots_adjust(left=.07, bottom=.07, right=.94, top=0.962,
+        self.fig.subplots_adjust(left=.07, bottom=.07, right=.94, top=0.962,
                             wspace=.04, hspace=.12)
 
         gs = gridspec.GridSpec(nrows=2, ncols=2, width_ratios=[2, 1],
                                height_ratios=[1, 3])
 
-        _ax1 = fig.add_subplot(gs[0, 0])
+        _ax1 = self.fig.add_subplot(gs[0, 0])
 
-        ax1 = fig.add_subplot(gs[0, 0], zorder=2)
+        ax1 = self.fig.add_subplot(gs[0, 0], zorder=2)
         ax1.plot(time, tr.data, linewidth=0.7)
         ax1.set_xlim(time.min(), time.max())
         # ax1.ticklabel_format(axis='y', style='sci', scilimits=(0, 0),
@@ -1165,7 +1205,7 @@ class Root(tk.Tk):
         _ax1.set_ylim(ax1.get_ylim())
         _ax1.set_ylabel('Amplitude [m/s]')
 
-        ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
+        ax2 = self.fig.add_subplot(gs[1, 0], sharex=ax1)
         self.spectrogram(tr, ax2)
         ax2.set_ylabel('Frequency [Hz]')
         ax2.set_xlabel('Time [s]')
@@ -1185,7 +1225,7 @@ class Root(tk.Tk):
         ax1.callbacks.connect('xlim_changed', on_lims_change)
         ax1.callbacks.connect('ylim_changed', on_lims_change)
 
-        self.canvas = FigureCanvasTkAgg(fig, master=self.frm_plt)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.frm_plt)
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=0, column=0)
 
@@ -1198,7 +1238,7 @@ class Root(tk.Tk):
 
         for t in ['t1', 't2', 't3']:
             if t in self.results[stacha].keys():
-                for ax in fig.get_axes()[1:3]:
+                for ax in self.fig.get_axes()[1:3]:
                     xdata = UTCDateTime(self.results[stacha][t]) - tr.stats.starttime
                     ax.axvline(x=xdata, linewidth=1, c='r', ls='--')
 
@@ -1206,16 +1246,16 @@ class Root(tk.Tk):
         def _pick(event):
             if event.button == 3:
                 if self.count <= 3:
-                    for ax in fig.get_axes()[1:3]:
+                    for ax in self.fig.get_axes()[1:3]:
                         ax.axvline(x=event.xdata, linewidth=1, c='r', ls='--')
+                        self.canvas.draw()
                     t = tr.stats.starttime + event.xdata
                     logging.info(f'Time picked: {t}')
-
                     self.results[stacha][f't{self.count}'] = str(t)
                 self.count += 1
-        fig.canvas.mpl_connect('button_press_event', _pick)
+        self.fig.canvas.mpl_connect('button_press_event', _pick)
 
-        self.fig = fig
+        self.multi = MultiCursor(self.fig.canvas, (ax1, ax2), color='r', lw=1)
         self.gs = gs
 
     def process(self):

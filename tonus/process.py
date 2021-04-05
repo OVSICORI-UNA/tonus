@@ -110,6 +110,18 @@ def peak_width_half_abs_height(freq, fft, peak):
 
 def get_peaks(tr, freqmin, freqmax, order, factor, distance_Hz=0.3,
               prominence_min=0.04, threshold=0.01, window_length_Hz=3):
+    """
+
+
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    a : in micrometers per second
+
+    """
 
     # Pre-process
     tr.detrend()
@@ -150,7 +162,7 @@ def get_peaks(tr, freqmin, freqmax, order, factor, distance_Hz=0.3,
         return freq, fft_norm, fft_smooth, [], [], [], [], []
 
     f = freq[peaks]
-    a = fft[peaks]
+    a = fft[peaks]*1e6
 
     # Q = f/deltaF
     q_f = []
