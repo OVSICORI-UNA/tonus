@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from tonus.app import Root 
+from tonus.app import Root
 
 
 Root().mainloop()

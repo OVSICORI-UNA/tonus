@@ -73,17 +73,19 @@ class Root(tk.Tk):
         self.frm_process = self.FrameProcess(self)
         self.frm_output  = self.FrameOutput(self)
 
-        self.overwrite_c_btn = tk.Button(self, text='Overwrite configuration',
-                                         command=self.overwrite_c)
 
         # Frames gridding
-        self.menubar.grid(row=0, column=0, sticky='nw', columnspan=1)
+        self.menubar.grid(row=0, column=0, sticky='nw', columnspan=2)
         self.frm_waves.grid(row=1, column=0, sticky='nw')
         self.frm_plt_p.grid(row=2, column=0, sticky='nw')
         self.frm_plt.grid(row=1, column=1, rowspan=self.grid_size()[1]+2)
         self.frm_process.grid(row=3, column=0, sticky='nw')
         self.frm_output.grid(row=4, column=0, sticky='nw')
-        self.overwrite_c_btn.grid(row=5, column=0, sticky='nw')
+
+        # Shortcut-keys
+        self.bind('<r>', self.process)
+        self.bind('<f>', self.select_next_trace)
+
 
     class FrameMenu(tk.Frame):
         def __init__(self, parent):
@@ -109,12 +111,28 @@ class Root(tk.Tk):
             )
             self.plot_results_btn.grid(row=0, column=0)
 
+            self.spec_cfg_btn = tk.Button(
+                self,
+                text='Spectrogram settings',
+                command=lambda: self.master.open_window(
+                    self.master.WindowSpecSettings(parent)
+                )
+            )
+            self.spec_cfg_btn.grid(row=0, column=1)
+
+            self.overwrite_c_btn = tk.Button(
+                self,
+                text='Overwrite configuration',
+                command=self.master.overwrite_c
+            )
+            self.overwrite_c_btn.grid(row=0, column=2)
+
             self.quit_btn = tk.Button(
                 self,
                 text='Quit',
                 command=self.parent.destroy
             )
-            self.quit_btn.grid(row=0, column=1)
+            self.quit_btn.grid(row=0, column=3)
 
     class FrameWaves(tk.LabelFrame):
         def __init__(self, parent):
@@ -151,7 +169,7 @@ class Root(tk.Tk):
                                           height=3, width=7)
             self.channel_lbx.config(exportselection=False)
 
-            for channel in ['HHE', 'HHN', 'HHZ']:
+            for channel in ['HHE', 'HHN', 'HHZ', 'HDF']:
                 self.channel_lbx.insert(tk.END, channel)
 
             # Swarm file for datetimes
@@ -204,18 +222,14 @@ class Root(tk.Tk):
             self.duration_ent.grid(row=10)
             self.download_btn.grid(row=11)
 
-            # self.station_lbl.grid(row=2)
             self.station_lbx.grid(row=0)
             self.station_sb.grid(row=0, column=1)
-            # self.channel_lbl.grid(row=2, column=2)
             self.channel_lbx.grid(row=0, column=2)
 
             self.swarm_cb.grid(row=0)
             self.swarm_btn.grid(row=0, column=1)
             self.swarm_lbx.grid(row=1, column=0, columnspan=2)
             self.swarm_sb.grid(row=1, column=2)
-            # for child in self.winfo_children():
-            #     child.grid_configure(padx=2, pady=2)
 
         def get_volcanoes(self, conn):
             df = pd.read_sql_query('SELECT volcano FROM volcano;', conn)
@@ -258,8 +272,8 @@ class Root(tk.Tk):
 
         def select_file(self):
             filetypes = (
-            ('Comma separated values', '*.csv'),
-            ('All files', '*.*')
+                ('Comma separated values', '*.csv'),
+                ('All files', '*.*')
             )
 
             self.swarm_file = tk.filedialog.askopenfilename(
@@ -277,35 +291,19 @@ class Root(tk.Tk):
         def __init__(self, parent):
             super().__init__(
                 parent,
-                text='2. Select trace to analyse',
+                text='2. Select trace (next: f)',
                 font=parent.font_title,
                 bd=parent.bd,
                 relief=parent.relief,
             )
 
-            # Stations/channels options
-            self.stacha_sv = tk.StringVar(self)
-            self.stacha = [' ']
-            self.stacha_om = tk.OptionMenu(
-                self,
-                self.stacha_sv,
-                *(self.stacha),
-            )
-            self.stacha_om.configure(state='disabled')
-
-            self.spec_cfg_btn = tk.Button(
-                self,
-                text='Settings',
-                command=lambda: parent.open_window(parent.WindowSpecSettings(parent))
-            )
-
-            self.stacha_om.grid()
-            self.spec_cfg_btn.grid(row=0, column=1)
+            self.stacha_lbx = tk.Listbox(self, height=3, exportselection=False)
+            self.stacha_lbx.bind('<<ListboxSelect>>', self.master.select_trace)
+            self.stacha_lbx.grid()
 
     class FramePlot(tk.LabelFrame):
         def __init__(self, parent):
-            text = '3. Picking: press the zoom button,' +\
-                    ' then pick with right-click button (3 times)'
+            text = '3. Picking with right-click button (3 times)'
             super().__init__(
                 parent,
                 text=text,
@@ -323,6 +321,8 @@ class Root(tk.Tk):
                 bd=parent.bd,
                 relief=parent.relief,
             )
+            validatefloat = self.register(self.master.isfloat)
+
             width = 4
 
             self.filter_lf= tk.LabelFrame(
@@ -331,29 +331,33 @@ class Root(tk.Tk):
             )
 
             self.freqmin_lbl = tk.Label(self.filter_lf, text='min(f) [Hz]')
-            self.freqmin_svr = tk.IntVar(self)
+            self.freqmin_svr = tk.DoubleVar(self)
             self.freqmin_svr.set(self.master.c.process.freqmin)
             self.freqmin_svr.trace(
                 'w',
                 lambda var, indx, mode: self.set_conf_change(
-                    var, indx, mode, 'freqmin', self.freqmin_svr.get()
+                    var, indx, mode, 'freqmin', self.freqmin_svr
                 )
             )
+
+
             self.freqmin_ent = tk.Entry(
-                self.filter_lf, textvariable=self.freqmin_svr, width=width
+                self.filter_lf, textvariable=self.freqmin_svr, width=width,
+                validate='all', validatecommand=(validatefloat, '%P'),
             )
 
             self.freqmax_lbl = tk.Label(self.filter_lf, text='max(f) [Hz]')
-            self.freqmax_svr = tk.IntVar(self)
+            self.freqmax_svr = tk.DoubleVar(self)
             self.freqmax_svr.set(self.master.c.process.freqmax)
             self.freqmax_svr.trace(
                 'w',
                 lambda var, indx, mode: self.set_conf_change(
-                    var, indx, mode, 'freqmax', self.freqmax_svr.get()
+                    var, indx, mode, 'freqmax', self.freqmax_svr
                 )
             )
             self.freqmax_ent = tk.Entry(
-                self.filter_lf, textvariable=self.freqmax_svr, width=width
+                self.filter_lf, textvariable=self.freqmax_svr, width=width,
+                validate='all', validatecommand=(validatefloat, '%P'),
             )
 
             self.order_lbl = tk.Label(self.filter_lf, text='Order')
@@ -362,11 +366,12 @@ class Root(tk.Tk):
             self.order_svr.trace(
                 'w',
                 lambda var, indx, mode: self.set_conf_change(
-                    var, indx, mode, 'order', self.order_svr.get()
+                    var, indx, mode, 'order', self.order_svr
                 )
             )
             self.order_ent = tk.Entry(
-                self.filter_lf, textvariable=self.order_svr, width=width
+                self.filter_lf, textvariable=self.order_svr, width=width,
+                validate='all', validatecommand=(validatefloat, '%P'),
             )
 
             self.factor_lbl = tk.Label(self, text='Threshold multiplier')
@@ -375,23 +380,40 @@ class Root(tk.Tk):
             self.factor_svr.trace(
                 'w',
                 lambda var, indx, mode: self.set_conf_change(
-                    var, indx, mode, 'factor', self.factor_svr.get()
+                    var, indx, mode, 'factor', self.factor_svr
                 )
             )
             self.factor_ent = tk.Entry(
-                self, textvariable=self.factor_svr, width=width
+                self, textvariable=self.factor_svr, width=width,
+                validate='all', validatecommand=(validatefloat, '%P'),
+            )
+
+            self.distance_Hz_lbl = tk.Label(self, text='Minimum distance [Hz]')
+            self.distance_Hz_svr = tk.DoubleVar(self)
+            self.distance_Hz_svr.set(self.master.c.process.distance_Hz)
+            self.distance_Hz_svr.trace(
+                'w',
+                lambda var, indx, mode: self.set_conf_change(
+                    var, indx, mode, 'distance_Hz', self.distance_Hz_svr
+                )
+            )
+            self.distance_Hz_ent = tk.Entry(
+                self, textvariable=self.distance_Hz_svr, width=width,
+                validate='all', validatecommand=(validatefloat, '%P'),
             )
 
             self.process_btn = tk.Button(
                 self,
-                text='Extract spectral peaks',
-                command=parent.process
+                text='Extract spectral peaks (r)',
+                command=lambda: parent.process('')
             )
 
             self.filter_lf.grid(row=0, column=0, columnspan=2)
             self.factor_lbl.grid(row=1, column=0)
             self.factor_ent.grid(row=1, column=1)
-            self.process_btn.grid(row=2, column=0, columnspan=2)
+            self.distance_Hz_lbl.grid(row=2, column=0)
+            self.distance_Hz_ent.grid(row=2, column=1)
+            self.process_btn.grid(row=3, column=0, columnspan=2)
 
             self.freqmin_lbl.grid(row=0, column=0)
             self.freqmax_lbl.grid(row=0, column=1)
@@ -400,8 +422,11 @@ class Root(tk.Tk):
             self.freqmax_ent.grid(row=1, column=1)
             self.order_ent.grid(row=1, column=2)
 
-        def set_conf_change(self, var, indx, mode, key, value):
-            self.master.c.process.__setitem__(key, value)
+        def set_conf_change(self, var, indx, mode, key, tkvar):
+            try:
+                self.master.c.process.__setitem__(key, tkvar.get())
+            except:
+                pass
 
     class FrameOutput(tk.LabelFrame):
         def __init__(self, parent):
@@ -610,17 +635,21 @@ class Root(tk.Tk):
 
             self.quit_btn = tk.Button(self, text='Close', command=self._destroy)
 
+            self.peaks_lf = tk.LabelFrame(self, text='Peaks detected')
+
             self.channels_lbl = tk.Label(self, text='Channels processed')
             self.channels_lbx = tk.Listbox(self, height=3)
             self.channels_lbx.delete(0, tk.END)
+            self.channels_lbx.bind("<<ListboxSelect>>", self.create_table)
             try:
                 for stacha in parent.results:
                     if 'peaks' in parent.results[stacha].keys():
                         self.channels_lbx.insert(tk.END, stacha)
+                self.channels_lbx.select_set(0)
+                self.channels_lbx.event_generate('<<ListboxSelect>>')
+                self.channels_lbx.focus_set()
             except:
                 pass
-
-            self.peaks_lf = tk.LabelFrame(self, text='Peaks detected')
 
             self.submit_btn = tk.Button(
                 self,
@@ -636,8 +665,6 @@ class Root(tk.Tk):
             header = ['Frequency [Hz]', 'Amplitude [um/s]', 'Q_f']
 
             table = Table(self.peaks_lf, header, [])
-
-            self.channels_lbx.bind("<<ListboxSelect>>", self.create_table)
 
         def _destroy(self):
             self.master.focus_force()
@@ -678,7 +705,6 @@ class Root(tk.Tk):
             cur = self.master.conn.cursor()
 
             # Clean channels not picked
-
             results = {}
             for stacha in self.master.results.keys():
                 if self.master.results[stacha] != {}:
@@ -759,6 +785,7 @@ class Root(tk.Tk):
             if submitted:
                 tk.messagebox.showinfo('Submission succesful',
                                        'Data has been written to the database')
+                self._destroy()
 
     class WindowPlotResults(tk.Toplevel):
         def __init__(self, parent):
@@ -774,9 +801,16 @@ class Root(tk.Tk):
 
             self.plot_db_lf = tk.LabelFrame(self, text='Plot')
 
+            self.download_csv_btn = tk.Button(
+                self,
+                text='Download CSV',
+                command=self.download_csv
+            )
+
             self.quit_btn.grid(row=0, column=0)
             self.selec_frm.grid(row=1, column=0)
-            self.plot_selec_frm.grid(row=2, column=0)
+            self.download_csv_btn.grid(row=2, column=0)
+            self.plot_selec_frm.grid(row=3, column=0)
             self.plot_db_lf.grid(row=0, column=1, rowspan=self.grid_size()[1]+1)
 
         class FrameSelection(tk.LabelFrame):
@@ -847,7 +881,8 @@ class Root(tk.Tk):
 
                 query = f"""
                 SELECT
-                    tornillo.t1, tornillo.channel_id,
+                    tornillo.t1, tornillo.t2, tornillo.t3,
+                    tornillo.channel_id, tornillo.event_id,
                     tornillo_peaks.frequency, tornillo_peaks.q_f,
                     tornillo_peaks.amplitude,
                     channel.station, channel.channel
@@ -866,6 +901,9 @@ class Root(tk.Tk):
                 df['stacha'] = df.station + ' ' + df.channel + ' ' +\
                         df.channel_id.apply(str)
 
+                for t in 't1 t2 t3'.split():
+                    df[t] = df[t].dt.tz_convert('America/Guatemala')
+
                 self.master.df = df
 
                 self.master.plot_selec_frm.stacha_lbx.delete(0, tk.END)
@@ -874,24 +912,19 @@ class Root(tk.Tk):
 
                 query = f"""
                 SELECT
-                    event.starttime
+                    event.starttime, event.id, tornillo.channel_id
                 FROM
                     event
                 INNER JOIN
-                    tornillo ON tornillo.event_id= event.id
+                    tornillo ON tornillo.event_id = event.id
                 INNER JOIN
                     channel ON tornillo.channel_id = channel.id
                 WHERE
                     tornillo.channel_id IN ({','.join(channel_ids)});
                 """
                 df = pd.read_sql_query(query, self.conn)
-                df.index = df.starttime
 
-                hist = df.drop(df.columns[:-1], axis=1)
-                hist.columns = ['n']
-                hist = hist.resample('D').count()
-                self.master.hist = hist
-
+                self.master.hist = df
 
         class FramePlotSelection(tk.LabelFrame):
             def __init__(self, parent, conn):
@@ -919,6 +952,14 @@ class Root(tk.Tk):
                 df = self.master.df
                 df = df[df.channel_id.isin(channel_ids)]
 
+                hist = self.master.hist
+                hist = hist[hist.channel_id.isin(channel_ids)]
+                hist = hist.groupby('id').min()
+                hist.index = hist.starttime.dt.tz_convert('America/Guatemala')
+                hist = hist.drop(hist.columns[:-1], axis=1)
+                hist.columns = ['n']
+                hist = hist.resample('D').count()
+
                 self.fig = plt.figure(figsize=(6, 6.5))
                 self.fig.subplots_adjust(left=.1, bottom=.07, right=.9, top=.98,
                                     wspace=.2, hspace=.15)
@@ -927,50 +968,63 @@ class Root(tk.Tk):
                 except:
                     pass
 
-                ax1 = self.fig.add_subplot(411)
+                rows = 4
+                cols = 1
+
+                ax1 = self.fig.add_subplot(rows, cols, 1)
                 ax1.set_ylabel('Frequency [Hz]')
 
-                ax2 = self.fig.add_subplot(412, sharex=ax1)
+                ax2 = self.fig.add_subplot(rows, cols, 2, sharex=ax1)
                 ax2.set_ylabel('Q')
 
-                ax3 = self.fig.add_subplot(413, sharex=ax1)
+                ax3 = self.fig.add_subplot(rows, cols, 3, sharex=ax1)
                 ax3.set_ylabel('Amplitude [$\mu m/s$]')
 
-                ax4 = self.fig.add_subplot(414, sharex=ax1)
+                ax4 = self.fig.add_subplot(rows, cols, 4, sharex=ax1)
                 ax4.set_ylabel('Number of daily events')
 
-                smin, smax = 10, 50
+                smin, smax = 20, 50
                 alpha = 0.5
 
                 df = df[~df.isin([np.nan, np.inf, -np.inf]).any(1)]
 
+
                 for stacha in stachas:
                     _df = df[df.stacha == stacha]
+                    _df = _df[_df.amplitude < 1e6]
+
+                    a = _df[['t1', 'event_id', 'amplitude']].groupby('event_id').max()
+
+                    s = 25
 
                     # amin = np.log(_df.amplitude.min())
                     # amax = np.log(_df.amplitude.max())
-
                     # s = [(smax-smin)/(amax-amin)*a for a in np.log(_df.amplitude)]
-                    s = 25
+
+                    amin = _df.amplitude.min()
+                    amax = _df.amplitude.max()
+                    s = [a*(smax-smin)/(amax-amin) for a in _df.amplitude]
 
                     ax1.scatter(_df.t1, _df.frequency, label=stacha, lw=0.5,
                                 edgecolor='grey', s=s)
-                    ax2.scatter(_df.t1, _df.q_f, label=stacha, lw=0.5,
-                               edgecolor='grey', s=s)
-                    ax3.scatter(_df.t1, _df.amplitude, label=stacha, lw=0.5,
-                               edgecolor='grey', s=s)
+                    # ax2.scatter(_df.t1, _df.q_f, label=stacha, lw=0.5,
+                    #            edgecolor='grey', s=s)
+                    ax2.scatter(_df.t1, (_df.t3-_df.t2).dt.total_seconds(),
+                                label=stacha, lw=0.5, edgecolor='grey', s=s)
+                    # ax3.scatter(_df.t1, _df.amplitude, label=stacha, lw=0.5,
+                    #            edgecolor='grey', s=s)
+                    ax3.scatter(a.t1, a.amplitude, label=stacha, lw=0.5,
+                               edgecolor='grey', s=20)
                     ax3.set_yscale('log')
 
-                ax4.bar(self.master.hist.index, self.master.hist.n,
-                        edgecolor='gray', linewidth=0.3)
+                ax4.bar(hist.index, hist.n, edgecolor='gray', linewidth=0.3)
 
                 for ax in self.fig.get_axes():
                     ax.grid('on', alpha=alpha)
-                ax1.legend()
+                ax2.legend()
                 self.canvas = FigureCanvasTkAgg(self.fig,
                                                 master=self.master.plot_db_lf)
-                # self.canvas.draw()
-                self.canvas.show()
+                self.canvas.draw()
                 self.canvas.get_tk_widget().grid(row=0, column=0)
 
                 self.toolbarFrame = tk.Frame(master=self.master.plot_db_lf)
@@ -980,6 +1034,20 @@ class Root(tk.Tk):
         def _destroy(self):
             self.master.focus_force()
             self.destroy()
+
+        def download_csv(self):
+            filetypes = (
+                ('Comma separated values', '*.csv'),
+                ('All files', '*.*')
+            )
+            outpath = tk.filedialog.asksaveasfile(
+                title='Open output file',
+                filetypes=filetypes
+            )
+            if outpath is None:
+                return
+            self.df.to_csv(outpath, index=False)
+            pass
 
     def set_conf(self):
         self.filepath = path.join(path.expanduser('~'), '.tonus.json')
@@ -993,6 +1061,18 @@ class Root(tk.Tk):
             )
             tk.messagebox.showwarning('Configuration file missing', text)
             self.destroy()
+
+    def isfloat(self, what):
+        if what == '':
+            return True
+        try:
+            float(what)
+            return True
+        except ValueError:
+            return False
+
+    def isntfloat(self, widget, value):
+        widget.set(value)
 
     def open_window(self, window):
         window.transient(self)
@@ -1010,13 +1090,14 @@ class Root(tk.Tk):
             print(e)
 
     def check_event(self):
+        pre_pick = 20
         volcano = self.frm_waves.volcanoes_sv.get()
 
         if self.frm_waves.starttime_ent['state'] == 'disabled':
             selection = self.frm_waves.swarm_lbx.curselection()
             self.starttime = UTCDateTime(
                 self.frm_waves.swarm_lbx.get(selection[0])
-            ) - 10
+            ) - pre_pick
         else:
             self.starttime = UTCDateTime(self.frm_waves.starttime_ent.get())
         duration = float(self.frm_waves.duration_ent.get())
@@ -1094,22 +1175,19 @@ class Root(tk.Tk):
         self.pre_process()
         logging.info('Stream downloaded.')
 
+        self.st.sort(keys=['station'])
         # Change station/channel options for plotting
-        self.frm_plt_p.stacha_om['menu'].delete(0, 'end')
         stachas = [
             f'{tr.stats.station} {tr.stats.channel}' for tr in self.st
         ]
-        self.frm_plt_p.stacha_om = tk.OptionMenu(
-            self.frm_plt_p,
-            self.frm_plt_p.stacha_sv,
-            *(stachas),
-            command=self.select_trace
-        )
-        self.frm_plt_p.stacha_om.grid(row=0, column=0)
-
         # Initialize the results holder:
-        # TODO evalua dejarlo en el __init__ de la aplicación
         self.results = {}
+
+        self.frm_plt_p.stacha_lbx.delete(0, tk.END)
+        for stacha in stachas:
+            self.frm_plt_p.stacha_lbx.insert(tk.END, stacha)
+        self.frm_plt_p.stacha_lbx.select_set(0)
+        self.frm_plt_p.stacha_lbx.event_generate("<<ListboxSelect>>")
 
         for stacha in stachas:
             self.results[stacha] = {}
@@ -1120,9 +1198,25 @@ class Root(tk.Tk):
         self.st.filter('highpass', freq=0.5)
 
     def select_trace(self, event):
-        station, channel = tuple(self.frm_plt_p.stacha_sv.get().split())
+        # station, channel = tuple(self.frm_plt_p.stacha_sv.get().split())
+        selection = self.frm_plt_p.stacha_lbx.curselection()
+        if len(selection) < 1:
+            return
+        stacha = self.frm_plt_p.stacha_lbx.get(selection[0])
+        station, channel = stacha.split()
         self.tr = self.st.select(station=station, channel=channel)[0]
         self.plot()
+
+    def select_next_trace(self, event):
+        selected_trace = self.frm_plt_p.stacha_lbx.curselection()[0]
+        n_traces = self.frm_plt_p.stacha_lbx.size()
+
+        if selected_trace < n_traces-1:
+            self.frm_plt_p.stacha_lbx.selection_clear(0, tk.END)
+            self.frm_plt_p.stacha_lbx.select_set(selected_trace+1)
+            self.frm_plt_p.stacha_lbx.event_generate('<<ListboxSelect>>')
+        else:
+            self.open_window(self.WindowResults(self))
 
     def spectrogram(self,
         tr, ax,
@@ -1171,7 +1265,6 @@ class Root(tk.Tk):
         return
 
     def plot(self):
-
         tr = self.tr
         stacha = f'{tr.stats.station} {tr.stats.channel}'
 
@@ -1236,29 +1329,40 @@ class Root(tk.Tk):
 
         self.canvas.mpl_connect('key_press_event', key_press_handler)
 
-        for t in ['t1', 't2', 't3']:
-            if t in self.results[stacha].keys():
-                for ax in self.fig.get_axes()[1:3]:
-                    xdata = UTCDateTime(self.results[stacha][t]) - tr.stats.starttime
-                    ax.axvline(x=xdata, linewidth=1, c='r', ls='--')
+        self.count = 0
 
-        self.count = 1
+        for t in ['t1', 't2', 't3']:
+            if stacha in self.results.keys():
+                if t in self.results[stacha].keys():
+                    self.count += 1
+                    for ax in self.fig.get_axes()[1:3]:
+                        xdata = UTCDateTime(
+                            self.results[stacha][t]
+                        ) - tr.stats.starttime
+                        ax.axvline(x=xdata, linewidth=1, c='r', ls='--')
+
+        # if self.count == 3:
+        #     self.process('')
+
         def _pick(event):
             if event.button == 3:
-                if self.count <= 3:
+                if self.count < 3:
                     for ax in self.fig.get_axes()[1:3]:
                         ax.axvline(x=event.xdata, linewidth=1, c='r', ls='--')
                         self.canvas.draw()
                     t = tr.stats.starttime + event.xdata
                     logging.info(f'Time picked: {t}')
-                    self.results[stacha][f't{self.count}'] = str(t)
+                    self.results[stacha][f't{self.count+1}'] = str(t)
                 self.count += 1
+                if self.count == 3:
+                    self.process('')
         self.fig.canvas.mpl_connect('button_press_event', _pick)
 
         self.multi = MultiCursor(self.fig.canvas, (ax1, ax2), color='r', lw=1)
         self.gs = gs
 
-    def process(self):
+
+    def process(self, event):
         _tr = self.tr.copy()
         stacha = f'{_tr.stats.station} {_tr.stats.channel}'
         t2 = UTCDateTime(self.results[stacha]['t2'])
@@ -1273,7 +1377,8 @@ class Root(tk.Tk):
             float(self.frm_process.freqmin_ent.get()),
             float(self.frm_process.freqmax_ent.get()),
             int(self.frm_process.order_ent.get()),
-            factor
+            factor,
+            distance_Hz=float(self.frm_process.distance_Hz_ent.get())
         )
 
         # Output
@@ -1298,7 +1403,7 @@ class Root(tk.Tk):
         ax3.scatter(fft_norm[peaks], freq[peaks], marker='x',
                     label='Identified peak', s=50, c='r')
         ax3.yaxis.tick_right()
-        ax3.legend()
+        ax3.legend(loc='lower left', bbox_to_anchor= (0.0, 1.01))
         ax3.set_xticks([])
         ax3.set_xlabel('Normalized amplitude')
         self.canvas.draw()
