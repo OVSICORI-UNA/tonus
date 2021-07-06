@@ -1,6 +1,10 @@
 # Installation
 
-1. Create a `conda` environment with dependencies:
+## Python
+
+### Anaconda
+
+You must have Anaconda in your system.  Create a `conda` environment with dependencies:
 
     ```
     $ conda create -n myenv pandas psycopg2 matplotlib=3.3.2
@@ -10,26 +14,36 @@
     (myenv) $ conda install scikit-image
     ```
 
-2. Clone the repository:
+### tonus
+
+Clone the repository:
 
     ```
     $ git clone https://github.com/OVSICORI-UNA/tonus.git
     ```
 
-3. Install the package in the `conda` environment created in step 1:
+Install the package in the `conda` environment created previously:
 
     ```
     (myenv) $ cd tonus
     (myenv) $ pip install -e .
     ```
 
-4. Create your configuration file `~/.tonus.json`, by copying *and* modifying the following:
+## PostgreSQL
+
+Install PostgreSQL [PostgreSQL](https://www.postgresql.org/download/linux/ubuntu/) wherever your database will reside.
+
+
+# Configuration file
+
+Create your configuration file `~/.tonus.json`, by copying *and* modifying the following:
     ```
     {
         "fdsn": {
             "ip": "",
             "port": ""
         },
+        "inventory": "/Users/leo/.tonus_inventory.xml", 
         "db": {
             "host": "",
             "user": "",
@@ -37,6 +51,7 @@
             "database": ""
         },
         "network": "NN,NN",
+        "max_radius": 4,
         "swarm_dir": "/path/to/swarm.csv",
         "duration": 40,
         "spectrogram": {
@@ -58,6 +73,27 @@
         }
     }
     ```
+
+# Set the database
+## Define your volcanoes
+
+Create a `csv` like the following example, let's call it `volcanoes.csv`:
+
+    | volcano            | latitude | longitude |
+    |--------------------|----------|-----------|
+    | Rincón de la Vieja |   10.831 |   -85.336 |
+
+## Create the database
+
+    (myenv) $ tonus-db volcanoes.csv
+
+## Clean the database
+
+Use your database manager (e.g. DBeaver) to:
+* Remove repeated stations (older stations or repeating in near but different volcanoes):
+    * find out the `id` of the volcano,
+    * filter the `station` table with `volcano_id = {id}`
+    * Remove the row
 
 # Automatic detection
 

@@ -1,0 +1,83 @@
+#!/usr/bin/env python
+
+# Python Standard Library
+import argparse
+import logging
+
+# Other dependencies
+from obspy import UTCDateTime, read_inventory
+import pandas as pd
+import psycopg2
+from obspy.clients.fdsn import Client
+
+# Local files
+from tonus.database import create_database, create_tables, insert_volcano_stations
+from tonus.config import set_conf
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('volcfile', help='CSV file with volcanoes information')
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    c = set_conf()
+
+    try:
+        inventory = read_inventory(c.inventory)
+    except:
+        url = f'http://{c.fdsn.ip}:{c.fdsn.port}'
+        logging.info(f'Connecting to {url}...')
+        client = Client(url)
+        logging.info('Succesfully connected to FDSN client.')
+
+        inventory = client.get_stations(
+            level='response', endafter=UTCDateTime.now(),
+            network=c.network
+        )
+        inventory.write(c.inventory, format='STATIONXML')
+
+    df = pd.read_csv(args.volcfile)
+    df = df.sort_values(
+        by=['longitude', 'latitude'], ascending=[True, False]
+    )
+    df = df.reset_index()
+
+    try:
+        conn = psycopg2.connect(**c.db)
+        logging.warning(f'Existing database with name {c.db.database}')
+        conn.close()
+    except Exception as e:
+        logging.info('Database does not exist. Creating it now.')
+
+        conn = psycopg2.connect(
+            host     = c.db.host,
+            user     = c.db.user,
+            password = c.db.password
+        )
+
+        create_database(conn, c.db.database)
+
+        conn = psycopg2.connect(**c.db)
+
+        create_tables(conn)
+
+        logging.info('Inserting volcanoes, stations and channels...')
+        for i, row in df.iterrows():
+            insert_volcano_stations(
+                inventory, row.volcano, row.latitude, row.longitude,
+                c.max_radius, conn
+            )
+
+
+if __name__ == '__main__':
+    LEVEL   = logging.INFO
+    FORMAT  = '%(asctime)s %(levelname)s: %(message)s'
+    DATEFMT = '%Y-%m-%d %H:%M:%S'
+
+    logging.basicConfig(level=LEVEL, format=FORMAT, datefmt=DATEFMT)
+
+    main()

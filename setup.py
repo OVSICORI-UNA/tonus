@@ -19,6 +19,7 @@ setup(
     ],
     scripts          = [
         'bin/tonus',
+        'bin/tonus-db',
         'bin/tonus-detect',
     ],
     zip_safe         = False
