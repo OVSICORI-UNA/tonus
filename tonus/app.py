@@ -1006,10 +1006,10 @@ class Root(tk.Tk):
 
                     ax1.scatter(_df.t1, _df.frequency, label=stacha, lw=0.5,
                                 edgecolor='grey', s=s)
-                    # ax2.scatter(_df.t1, _df.q_f, label=stacha, lw=0.5,
-                    #            edgecolor='grey', s=s)
-                    ax2.scatter(_df.t1, (_df.t3-_df.t2).dt.total_seconds(),
-                                label=stacha, lw=0.5, edgecolor='grey', s=s)
+                    ax2.scatter(_df.t1, _df.q_f, label=stacha, lw=0.5,
+                               edgecolor='grey', s=s)
+                    # ax2.scatter(_df.t1, (_df.t3-_df.t2).dt.total_seconds(),
+                    #             label=stacha, lw=0.5, edgecolor='grey', s=s)
                     # ax3.scatter(_df.t1, _df.amplitude, label=stacha, lw=0.5,
                     #            edgecolor='grey', s=s)
                     ax3.scatter(a.t1, a.amplitude, label=stacha, lw=0.5,
@@ -1204,6 +1204,7 @@ class Root(tk.Tk):
         stacha = self.frm_plt_p.stacha_lbx.get(selection[0])
         station, channel = stacha.split()
         self.tr = self.st.select(station=station, channel=channel)[0]
+        plt.close()
         self.plot()
 
     def select_next_trace(self, event):

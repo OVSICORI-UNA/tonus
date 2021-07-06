@@ -6,6 +6,8 @@
     $ conda create -n myenv pandas psycopg2 matplotlib=3.3.2
     $ conda activate myenv
     (myenv) $ conda install -c conda-forge obspy
+    (myenv) $ conda install numba
+    (myenv) $ conda install scikit-image
     ```
 
 2. Clone the repository:
@@ -34,7 +36,8 @@
             "password": "",
             "database": ""
         },
-        "network": "OV,TC",
+        "network": "NN,NN",
+        "swarm_dir": "/path/to/swarm.csv",
         "duration": 40,
         "spectrogram": {
             "nfft": 256,
@@ -51,13 +54,25 @@
             "freqmax": 15,
             "order": 4,
             "factor": 4
+            "distance_Hz": 0.75
         }
     }
     ```
 
-# Run the program
+# Automatic detection
+
+This step could be skipped, if you already detected the events to process.
+
+Default parameters are fined-tuned to detect Turrialba tonal codas. Check the parameters:
+
+    (myenv) $ tonus-detect -h
 
 Run the program:
 
-    $ conda activate myenv
+    (myenv) $ tonus-detect
+
+Use Swarm to check and clean the output.
+
+# Process the detections
+
     (myenv) $ tonus
