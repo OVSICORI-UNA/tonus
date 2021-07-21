@@ -6,28 +6,22 @@
 
 You must have Anaconda in your system.  Create a `conda` environment with dependencies:
 
-    ```
     $ conda create -n myenv pandas psycopg2 matplotlib=3.3.2
     $ conda activate myenv
     (myenv) $ conda install -c conda-forge obspy
     (myenv) $ conda install numba
     (myenv) $ conda install scikit-image
-    ```
 
 ### tonus
 
 Clone the repository:
 
-    ```
     $ git clone https://github.com/OVSICORI-UNA/tonus.git
-    ```
 
 Install the package in the `conda` environment created previously:
 
-    ```
     (myenv) $ cd tonus
     (myenv) $ pip install -e .
-    ```
 
 ## PostgreSQL
 
@@ -37,7 +31,6 @@ Install PostgreSQL [PostgreSQL](https://www.postgresql.org/download/linux/ubuntu
 # Configuration file
 
 Create your configuration file `~/.tonus.json`, by copying *and* modifying the following:
-    ```
     {
         "fdsn": {
             "ip": "",
@@ -72,7 +65,6 @@ Create your configuration file `~/.tonus.json`, by copying *and* modifying the f
             "distance_Hz": 0.75
         }
     }
-    ```
 
 # Set the database
 ## Define your volcanoes
