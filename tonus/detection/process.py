@@ -87,5 +87,6 @@ def get_cft(tr, short_win, overlap, pad, k, bin_width, long_win):
 
     tr.data = cft
     tr.stats.delta = delta
+    tr.stats.sampling_rate = 1/delta
     tr.stats.starttime = utcdatetimes[0]
     return

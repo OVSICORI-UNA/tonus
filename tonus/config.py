@@ -2,6 +2,9 @@ from os import path
 import json
 
 
+CONF_FILEPATH = path.join(path.expanduser('~'), '.tonus.json')
+
+
 class Conf(dict):
     def __init__(self, *args, **kwargs):
         super(Conf, self).__init__(*args, **kwargs)
@@ -48,7 +51,6 @@ class Conf(dict):
 
 
 def set_conf():
-    filepath = path.join(path.expanduser('~'), '.tonus.json')
-    with open(filepath) as f:
+    with open(CONF_FILEPATH) as f:
         c = Conf(json.load(f))
     return c

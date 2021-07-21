@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 
-from tonus.app import Root
+# Python Standard Library
+
+# Other dependencies
+import logging
+
+# Local files
+from tonus.gui.root import Root
 
 
-Root().mainloop()
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+
+    Root().mainloop()

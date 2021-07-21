@@ -78,8 +78,8 @@ event = TableSchema(
     ]
 )
 
-tornillo = TableSchema(
-    'tornillo',
+coda = TableSchema(
+    'coda',
     [
 	('channel_id', 'int8 NOT NULL'),
 	('t1', 'timestamptz(3) NULL'),
@@ -90,24 +90,24 @@ tornillo = TableSchema(
 	('id', 'serial NOT NULL'),
     ],
     [
-	'CONSTRAINT tornillo_pk PRIMARY KEY (id)',
-	'CONSTRAINT tornillo_un UNIQUE (channel_id, event_id)',
-	'CONSTRAINT tornillo_times_fk FOREIGN KEY (event_id) REFERENCES "event"(id)',
-	'CONSTRAINT tornillo_times_fk_1 FOREIGN KEY (channel_id) REFERENCES channel(id)'
+	'CONSTRAINT coda_pk PRIMARY KEY (id)',
+	'CONSTRAINT coda_un UNIQUE (channel_id, event_id)',
+	'CONSTRAINT coda_times_fk FOREIGN KEY (event_id) REFERENCES "event"(id)',
+	'CONSTRAINT coda_times_fk_1 FOREIGN KEY (channel_id) REFERENCES channel(id)'
     ]
 )
 
-tornillo_peaks = TableSchema(
-    'tornillo_peaks',
+coda_peaks = TableSchema(
+    'coda_peaks',
     [
 	('frequency', 'float8 NULL'),
 	('amplitude', 'float8 NULL'),
 	('q_f', 'float8 NULL'),
-	('tornillo_id', 'int8 NULL'),
+	('coda_id', 'int8 NULL'),
 	('id', 'serial NOT NULL'),
     ],
     [
-        'CONSTRAINT tornillo_peaks_pk PRIMARY KEY (id)',
-	'CONSTRAINT tornillo_peaks_fk FOREIGN KEY (tornillo_id) REFERENCES tornillo(id)'
+        'CONSTRAINT coda_peaks_pk PRIMARY KEY (id)',
+        'CONSTRAINT coda_peaks_fk FOREIGN KEY (coda_id) REFERENCES coda(id)'
     ]
 )

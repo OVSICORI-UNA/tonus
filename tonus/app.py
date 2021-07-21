@@ -24,7 +24,7 @@ import pandas as pd
 import psycopg2
 
 # Local files
-from tonus.config import Conf
+from tonus.config import set_conf, CONF_FILEPATH
 from tonus.process import get_peaks
 
 
@@ -40,7 +40,7 @@ class Root(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        self.set_conf()
+        self._set_conf()
 
         self.wm_title('tonus')
 
@@ -348,6 +348,7 @@ class Root(tk.Tk):
             self.freqmax_lbl = tk.Label(self.filter_lf, text='max(f) [Hz]')
             self.freqmax_svr = tk.DoubleVar(self)
             self.freqmax_svr.set(self.master.c.process.freqmax)
+
             self.freqmax_svr.trace(
                 'w',
                 lambda var, indx, mode: self.set_conf_change(
@@ -1048,14 +1049,13 @@ class Root(tk.Tk):
             self.df.to_csv(outpath, index=False)
             pass
 
-    def set_conf(self):
-        self.filepath = path.join(path.expanduser('~'), '.tonus.json')
+    def _set_conf(self):
         try:
-            with open(self.filepath) as f:
-                self.c = Conf(json.load(f))
+            self.c = set_conf()
         except Exception as e:
+            logging.error(e)
             text=(
-                f'Configuration {self.filepath} file missing. '
+                f'Configuration {CONF_FILEPATH} file missing. '
                 'Copy it from tonus/ and modify it.'
             )
             tk.messagebox.showwarning('Configuration file missing', text)
@@ -1409,11 +1409,11 @@ class Root(tk.Tk):
         self.canvas.draw()
 
     def overwrite_c(self):
-        with open(self.filepath, 'w') as f:
+        with open(CONF_FILEPATH, 'w') as f:
             json.dump(self.c, f, indent=4)
         tk.messagebox.showinfo(
             'Configuration saved',
-            f'Current settings saved in the {self.filepath} file'
+            f'Current settings saved in the {CONF_FILEPATH} file'
         )
 
 

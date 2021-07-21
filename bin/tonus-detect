@@ -158,7 +158,8 @@ def main():
     c = set_conf()
 
 
-    url = f'http://{c.fdsn.ip}:{c.fdsn.port}'
+    # TODO files
+    url = f'http://{c.waveserver.ip}:{c.waveserver.port}'
     logging.info(f'Connecting to {url}...')
     client = Client(url)
     logging.info('Succesfully connected to FDSN client.')
@@ -176,8 +177,9 @@ def main():
     preprocess(st, args.freqmin, args.freqmax, args.order)
 
 
+    _st = st.copy()
     logging.info('Computing characteristic functions...')
-    for tr in st:
+    for tr in _st:
         logging.info(tr.stats.station + '-' + tr.stats.channel)
         get_cft(
             tr,
@@ -187,9 +189,10 @@ def main():
         )
 
 
+
     logging.info('Detecting events...')
     events = coincidence_trigger(
-        None, args.thr_on, args.thr_off, st, args.thr_coincidence_sum,
+        None, args.thr_on, args.thr_off, _st, args.thr_coincidence_sum,
         max_trigger_length=args.max_trigger_length,
         delete_long_trigger=args.delete_long_trigger
     )
@@ -203,6 +206,10 @@ def main():
     for event in events:
         t = event['time'].datetime.strftime('%Y-%m-%d %H:%M:%S')
         output.write(f'{t},{args.swarm_str},{int(event["duration"])}\n')
+
+
+    # tr = st.select(station='CVTR', channel='HHZ')[0]
+    st[0].plot(type='dayplot', events=events)
     return
 
 
