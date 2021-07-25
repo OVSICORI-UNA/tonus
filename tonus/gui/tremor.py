@@ -322,7 +322,7 @@ class AppTremor(tk.Toplevel):
             r = self.master.results[stacha]
 
             lp = 'No'
-            if r['lp']:
+            if 'lp_time' in r:
                 lp = 'Yes'
 
             keys = [
@@ -367,7 +367,7 @@ class AppTremor(tk.Toplevel):
 
                 starttimes, endtimes = [], []
                 for stacha in self.master.results.keys():
-                    if self.master.results[stacha]['lp']:
+                    if 'lp_time' in self.master.results[stacha]:
                         starttimes.append(
                             UTCDateTime(self.master.results[stacha]['lp_time'])
                         )
@@ -408,7 +408,7 @@ class AppTremor(tk.Toplevel):
                 )
                 channel_id = cur.fetchone()[0]
 
-                lp = self.master.results[stacha]['lp']
+                lp = 'lp_time' in self.master.results[stacha]
                 if lp:
                     lp_time = "\'"+str(
                         UTCDateTime(self.master.results[stacha]['lp_time'])
@@ -626,15 +626,14 @@ class AppTremor(tk.Toplevel):
         self.count = 0
 
         if stacha in self.results.keys():
-            if 'lp' in self.results[stacha].keys():
+            if 'lp_time' in self.results[stacha].keys():
                 self.count += 1
                 for ax in ax1, self.ax2:
                     xdata = UTCDateTime(
-                        self.results[stacha]['lp']
+                        self.results[stacha]['lp_time']
                     ) - tr.stats.starttime
                     ax.axvline(x=xdata, linewidth=1, c='r', ls='--')
 
-        self.results[stacha]['lp'] = False
         def _pick(event):
             if event.button == 3:
                 if self.count < 1:
@@ -643,7 +642,6 @@ class AppTremor(tk.Toplevel):
                         self.canvas.draw()
                     t = tr.stats.starttime + event.xdata
                     logging.info(f'Time picked: {t}')
-                    self.results[stacha]['lp'] = True
                     self.results[stacha]['lp_time'] = str(t)
 
                 self.count += 1

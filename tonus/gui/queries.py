@@ -123,52 +123,50 @@ def _get_coda_data(channel_ids, conn):
 def _get_tremor_data(channel_ids, conn):
     query = f"""
     SELECT
-        tremor.starttime, tremor.fmin, tremor.fmax,
+        tremor.starttime, tremor.endtime, tremor.lp,
+        tremor.fmean, tremor.fmin, tremor.fmax,
         tremor.n_harmonics, tremor.amplitude,
+        tremor.channel_id,
         channel.station, channel.channel
     FROM
-        coda_peaks
-
-    INNER JOIN
-        coda
-    ON
-        coda_peaks.coda_id = coda.id
+        tremor
 
     INNER JOIN
         channel
     ON
-        coda.channel_id = channel.id
+        tremor.channel_id = channel.id
 
     WHERE
-        coda.channel_id IN ({','.join(channel_ids)});
+        tremor.channel_id IN ({','.join(channel_ids)});
     """
 
     df = pd.read_sql_query(query, conn)
 
-    for t in 't1 t2 t3'.split():
-        df[t] = df[t].dt.tz_convert('America/Guatemala')
+    # for t in 'starttime endtime'.split():
+    #     df[t] = df[t].dt.tz_convert('America/Guatemala')
 
     query = f"""
     SELECT
-        event.starttime, event.id, coda.channel_id
+        event.starttime, event.id, tremor.channel_id
     FROM
         event
 
     INNER JOIN
-        coda
+        tremor
     ON
-        coda.event_id = event.id
+        tremor.event_id = event.id
 
     INNER JOIN
         channel
     ON
-        coda.channel_id = channel.id
+        tremor.channel_id = channel.id
 
     WHERE
-        coda.channel_id IN ({','.join(channel_ids)});
+        tremor.channel_id IN ({','.join(channel_ids)});
     """
     hist = pd.read_sql_query(query, conn)
     return df, hist
+
 
 def get_data(channel_ids, event_type, conn):
     if event_type == 'coda':

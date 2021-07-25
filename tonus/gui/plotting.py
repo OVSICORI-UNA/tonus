@@ -135,7 +135,72 @@ def _plot_db_coda(df, hist):
     return fig
 
 
+def _plot_db_tremor(df, hist):
+    s = 25
+
+    fig = plt.figure(figsize=(6, 6.5))
+    fig.subplots_adjust(left=.1, bottom=.07, right=.9, top=.98,
+                        wspace=.2, hspace=.15)
+    try:
+        ax1.remove()
+    except:
+        pass
+
+    rows = 4
+    cols = 1
+
+    ax1 = fig.add_subplot(rows, cols, 1)
+    ax1.set_ylabel('Fundamental\nfrequency [Hz]')
+
+    ax2 = fig.add_subplot(rows, cols, 2)
+    ax2.set_ylabel('Number of harmonics')
+
+    ax3 = fig.add_subplot(rows, cols, 3)
+    ax3.set_ylabel('Amplitude [m/s]')
+
+    ax4 = fig.add_subplot(rows, cols, 4)
+    ax4.set_ylabel('Duration')
+
+    for stacha in df.stacha.unique():
+        _df = df[df.stacha == stacha]
+
+        ax1.scatter(
+            _df.starttime,
+            _df.fmean,
+            label=stacha,
+            lw=0.5,
+            edgecolor='grey',
+            s=s
+        )
+        ax2.scatter(
+            _df.starttime,
+            _df.n_harmonics,
+            label=stacha,
+            lw=0.5,
+            edgecolor='grey',
+            s=s
+        )
+        ax3.scatter(
+            _df.starttime,
+            _df.amplitude,
+            label=stacha,
+            lw=0.5,
+            edgecolor='grey',
+            s=s
+        )
+        ax4.scatter(
+            _df.starttime,
+            (_df.endtime - _df.starttime).dt.total_seconds(),
+            label=stacha,
+            lw=0.5,
+            edgecolor='grey',
+            s=s
+        )
+    return fig
+
 def plot_db(df, hist, event_type):
     if event_type == 'coda':
         return _plot_db_coda(df, hist)
+    elif event_type == 'tremor':
+        return _plot_db_tremor(df, hist)
 
