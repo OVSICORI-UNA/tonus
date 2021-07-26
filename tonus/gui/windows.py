@@ -201,7 +201,7 @@ class WindowPlotResults(tk.Toplevel):
         super().__init__()
         self.master = master
         self.conn = master.conn
-        self.title('Plot database results - tonal coda')
+        self.title('Plot database results')
         self.event_type = master.event_type
 
         self.quit_btn = tk.Button(self, text='Close', command=self._destroy)
