@@ -20,7 +20,7 @@ from tonus.gui.tremor import AppTremor
 from tonus.gui.utils import open_window
 
 
-plt.style.use('dark_background')
+# plt.style.use('dark_background')
 
 
 class Root(tk.Tk):
