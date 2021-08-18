@@ -194,9 +194,9 @@ def _plot_db_tremor(df, hist):
 
     ax4.bar(hist.index, hist.n, edgecolor='gray', linewidth=0.5)
 
-    ax4.set_xlim(datetime(2018, 2, 1), datetime(2019, 1, 1))
-    for ax in fig.get_axes():
-        ax.xaxis.set_major_locator(md.MonthLocator(interval=2))
+    # ax4.set_xlim(datetime(2018, 2, 1), datetime(2019, 1, 1))
+    # for ax in fig.get_axes():
+    #     ax.xaxis.set_major_locator(md.MonthLocator(interval=2))
         # ax.xaxis.set_minor_locator(md.DayLocator(interval=7))
     return fig
 

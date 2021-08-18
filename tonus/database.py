@@ -39,8 +39,8 @@ def create_tables(conn):
         schema.station,
         schema.channel,
         schema.event,
-        schema.tornillo,
-        schema.tornillo_peaks,
+        schema.coda,
+        schema.coda_peaks,
     ]
 
     for table_schema in table_schemas:
