@@ -1,23 +1,30 @@
 #!/usr/bin/env python
 
+
+"""
+This module contains the Root (Tk) class, the top level widget.
+Main window of the application.
+"""
+
+
 # Python Standard Library
-import importlib
 import logging
-import sys
 import tkinter as tk
-from tkinter import ttk
 
 # Other dependencies
 import matplotlib.pyplot as plt
 from obspy import read, read_inventory
 import pandas as pd
 import psycopg2
+import tonus
 
 # Local files
-from tonus.config import set_conf, CONF_FILEPATH
-from tonus.gui.coda import AppCoda
-from tonus.gui.tremor import AppTremor
-from tonus.gui.utils import open_window
+
+from PIL import Image, ImageTk
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
 
 
 plt.style.use('dark_background')
@@ -26,6 +33,11 @@ plt.style.use('dark_background')
 class Root(tk.Tk):
     def __init__(self):
         super().__init__()
+        # self.iconbitmap('')
+
+        # ico = Image.open('/Users/laat/Downloads/cas-email.jpeg')
+        # photo = ImageTk.PhotoImage(ico)
+        # self.wm_iconphoto(False, photo)
 
         self._set_conf()
 
@@ -51,11 +63,11 @@ class Root(tk.Tk):
 
     def _set_conf(self):
         try:
-            self.c = set_conf()
+            self.c = tonus.config.set_conf()
         except Exception as e:
             logging.error(e)
-            text=(
-                f'Configuration {CONF_FILEPATH} file missing. '
+            text = (
+                f'Configuration {tonus.config.CONF_FILEPATH} file missing. '
                 'Copy it from tonus/ and modify it.'
             )
             tk.messagebox.showwarning('Configuration file missing', text)
@@ -74,7 +86,7 @@ class Root(tk.Tk):
             )
 
             self.sv_waveserver = tk.StringVar(self)
-            self.sv_waveserver.set(self.master.c.waveserver.client)
+            self.sv_waveserver.set(self.master.c.waveserver.name)
             self.rbtn_fdsn = tk.Radiobutton(
                 self,
                 text='FDSN',
@@ -82,13 +94,6 @@ class Root(tk.Tk):
                 value='fdsn',
                 command=self.switch_waveserver
             )
-            # self.rbtn_winston = tk.Radiobutton(
-            #     self,
-            #     text='Earthworm',
-            #     value='earthworm',
-            #     variable=self.sv_waveserver,
-            #     command=self.switch_waveserver
-            # )
             self.rbtn_files = tk.Radiobutton(
                 self,
                 text='files',
@@ -111,15 +116,12 @@ class Root(tk.Tk):
                 command=self.master.connect_waveserver
             )
 
-
             self.lbl_files = tk.Label(self, text='Inventory')
             self.btn_files_select = tk.Button(
                 self,
                 text='Select waveform files',
                 command=self.select_waves_files
             )
-
-
 
             self.rbtn_fdsn.grid(row=0, column=0, sticky='nw')
             # self.rbtn_winston.grid(row=0, column=1, sticky='nw')
@@ -136,14 +138,14 @@ class Root(tk.Tk):
             self.btn_waveserver_connect.grid(row=0, column=1)
 
         def switch_waveserver(self):
-            self.master.c.waveserver.client = self.sv_waveserver.get()
+            self.master.c.waveserver.name = self.sv_waveserver.get()
             if self.sv_waveserver.get() in ['fdsn', 'earthworm']:
-                self.ent_ip['state']   = 'normal'
+                self.ent_ip['state'] = 'normal'
                 self.ent_port['state'] = 'normal'
                 self.btn_waveserver_connect['state'] = 'normal'
                 self.btn_files_select['state'] = 'disabled'
             elif self.sv_waveserver.get() == 'files':
-                self.ent_ip['state']   = 'disabled'
+                self.ent_ip['state'] = 'disabled'
                 self.ent_port['state'] = 'disabled'
                 self.btn_waveserver_connect['state'] = 'disabled'
                 self.btn_files_select['state'] = 'normal'
@@ -171,7 +173,6 @@ class Root(tk.Tk):
                     continue
 
             self.master.df_files = pd.DataFrame(data)
-
 
             if len(data) == 1:
                 text = '1 file pre-loaded'
@@ -223,71 +224,39 @@ class Root(tk.Tk):
                 font=master.font_title,
                 bd=master.bd,
                 relief=master.relief,
-            )
-            self.btn_coda = tk.Button(
-                self,
-                text='Tonal coda',
-                command=lambda: open_window(master, AppCoda(master))
-            )
-            self.btn_tremor = tk.Button(
-                self,
-                text='Harmonic tremor',
-                command=lambda: open_window(master, AppTremor(master))
-            )
-
-            self.btn_coda.grid()
-            self.btn_tremor.grid()
-
-    class FramePortal(tk.LabelFrame):
-        def __init__(self, master):
-            super().__init__(
-                master,
-                text='Select the type of signal to process',
-                font=master.font_title,
-                bd=master.bd,
-                relief=master.relief,
                 padx=10,
                 pady=10
             )
             self.btn_coda = tk.Button(
                 self,
                 text='Tonal coda',
-                command=lambda: open_window(master, AppCoda(master))
+                command=lambda: tonus.gui.utils.open_window(
+                    master, tonus.gui.coda.AppCoda(master)
+                )
             )
             self.btn_coda.grid()
             self.btn_tremor = tk.Button(
                 self,
                 text='Harmonic tremor',
-                command=lambda: open_window(master, AppTremor(master))
+                command=lambda: tonus.gui.utils.open_window(
+                    master, tonus.gui.tremor.AppTremor(master)
+                )
             )
             self.btn_tremor.grid()
-
 
     def connect_waveserver(self):
         name = self.frm_waveserver.sv_waveserver.get()
         if name not in 'fdsn earthworm'.split():
             return
 
-
-        ip   = self.frm_waveserver.ent_ip.get()
+        ip = self.frm_waveserver.ent_ip.get()
         port = self.frm_waveserver.ent_port.get()
 
-        waveserver = importlib.import_module(f'obspy.clients.{name}')
         try:
-            logging.info(f'Connecting to {ip}...')
-            if name == 'fdsn':
-                if ip == 'IRIS':
-                    self.client = waveserver.Client(ip)
-                else:
-                    self.client = waveserver.Client(f'http://{ip}:{port}')
-            elif name == 'earthworm':
-                self.client = waveserver.Client(ip, int(port))
-            logging.info(f'Succesfully connected to {ip} client.\n')
-            return self.client
+            self.client = tonus.waveserver.connect(name, ip, port)
         except Exception as e:
             logging.error(e)
             tk.messagebox.showwarning('Warning', e)
-
 
     def load_inventory(self):
         logging.info('Loading inventory...')
@@ -309,14 +278,4 @@ class Root(tk.Tk):
 
 
 if __name__ == "__main__":
-    from tonus.gui.queries import get_volcanoes_with_event
-
-    database = {
-        "host": "10.10.129.145",
-        "user": "postgres",
-        "password": "ovsicori84",
-        "database": "tonus"
-    }
-    conn = psycopg2.connect(**database)
-
-    print(get_volcanoes_with_event('tremor', conn)); exit()
+    pass

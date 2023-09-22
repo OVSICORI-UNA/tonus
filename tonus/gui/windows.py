@@ -1,15 +1,26 @@
+#!/usr/bin/env python
+
+
+"""
+"""
+
+
 # Python Standard Library
 import tkinter as tk
 
 # Other dependencies
 import matplotlib.pyplot as plt
+import tonus
+
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk
 )
 
 # Local files
-from tonus.gui.plotting import plot_db
-from tonus.gui.queries import get_volcanoes_with_event, get_stacha_with_event, get_data
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
 
 
 class WindowSpecSettings(tk.Toplevel):
@@ -20,8 +31,8 @@ class WindowSpecSettings(tk.Toplevel):
         quit_btn = tk.Button(self, text='Close', command=self._destroy)
 
         self.window_lf = tk.LabelFrame(self, text='Window')
-        self.yaxis_lf  = tk.LabelFrame(self, text='Y-axis')
-        self.cmap_lf   = tk.LabelFrame(self, text='Color map')
+        self.yaxis_lf = tk.LabelFrame(self, text='Y-axis')
+        self.cmap_lf = tk.LabelFrame(self, text='Color map')
 
         self.window_lf.grid(row=0, column=0)
         self.yaxis_lf.grid(row=1, column=0)
@@ -61,7 +72,10 @@ class WindowSpecSettings(tk.Toplevel):
                 var, indx, mode, 'per_lap', self.per_lap_svr.get()
             )
         )
-        self.per_lap_ent = tk.Entry(self.window_lf, textvariable=self.per_lap_svr)
+        self.per_lap_ent = tk.Entry(
+            self.window_lf,
+            textvariable=self.per_lap_svr
+        )
 
         self.nfft_lb.grid(row=0, column=0)
         self.nfft_om.grid(row=1, column=0)
@@ -81,8 +95,9 @@ class WindowSpecSettings(tk.Toplevel):
                 var, indx, mode, 'ymin', self.ymin_svr.get()
             )
         )
-        self.ymin_ent = tk.Entry(self.yaxis_lf, textvariable=self.ymin_svr,
-                                width=4)
+        self.ymin_ent = tk.Entry(
+            self.yaxis_lf, textvariable=self.ymin_svr, width=4
+        )
 
         self.ymax_lbl = tk.Label(self.yaxis_lf, text='min(f) [Hz]')
         self.ymax_svr = tk.DoubleVar(self)
@@ -93,8 +108,9 @@ class WindowSpecSettings(tk.Toplevel):
                 var, indx, mode, 'ymax', self.ymax_svr.get()
             )
         )
-        self.ymax_ent = tk.Entry(self.yaxis_lf, textvariable=self.ymax_svr,
-                                width=4)
+        self.ymax_ent = tk.Entry(
+            self.yaxis_lf, textvariable=self.ymax_svr, width=4
+        )
 
         self.ymin_lbl.grid(row=0, column=0)
         self.ymin_ent.grid(row=1, column=0)
@@ -131,7 +147,6 @@ class WindowSpecSettings(tk.Toplevel):
         self.std_factor_ent.grid(row=3, column=0)
 
         ###################################################################
-
 
     def set_nfft(self, event):
         self.master.c.spectrogram.nfft = self.nfft_sv.get()
@@ -233,10 +248,12 @@ class WindowPlotResults(tk.Toplevel):
             self.volcano_lbl = tk.Label(self, text='Volcano')
             self.volcano_lbl.pack()
 
-            volcanoes = get_volcanoes_with_event(self.event_type, self.conn)
+            volcanoes = tonus.gui.queries.get_volcanoes_with_event(
+                self.event_type,
+                self.conn
+            )
             if len(volcanoes) == 0:
                 return
-
 
             self.volcanoes_sv = tk.StringVar(self)
             self.volcano_om = tk.OptionMenu(
@@ -260,11 +277,10 @@ class WindowPlotResults(tk.Toplevel):
             )
             self.download_db_btn.pack()
 
-
         def get_stacha(self, event):
             volcano = self.volcanoes_sv.get()
 
-            stations, channels, ids= get_stacha_with_event(
+            stations, channels, ids = tonus.gui.queries.get_stacha_with_event(
                 volcano, self.event_type, self.conn
             )
 
@@ -281,7 +297,7 @@ class WindowPlotResults(tk.Toplevel):
             stachas = [self.stacha_lbx.get(s) for s in selection]
             channel_ids = [stacha.split()[2] for stacha in stachas]
 
-            self.master.df, self.master.hist = get_data(
+            self.master.df, self.master.hist = tonus.gui.queries.get_data(
                 channel_ids, self.event_type, self.conn
             )
 
@@ -323,12 +339,16 @@ class WindowPlotResults(tk.Toplevel):
             hist = self.master.hist
             hist = hist[hist.channel_id.isin(channel_ids)]
             hist = hist.groupby('id').min()
-            hist.index = hist.starttime.dt.tz_convert('America/Guatemala')
+            # hist.index = hist.starttime.dt.tz_convert('America/Guatemala')
+            hist.index = hist.starttime
             hist = hist.drop(hist.columns[:-1], axis=1)
             hist.columns = ['n']
-            hist = hist.resample('D').count()
+            window = 'D'
+            if (hist.index.max() - hist.index.min()).days > 365:
+                window = 'W'
+            hist = hist.resample(window).count()
 
-            self.fig = plot_db(df, hist, self.event_type)
+            self.fig = tonus.gui.plotting.plot_db(df, hist, self.event_type)
 
             self.canvas = FigureCanvasTkAgg(
                 self.fig, master=self.master.plot_db_lf
@@ -357,3 +377,7 @@ class WindowPlotResults(tk.Toplevel):
             return
         self.df.to_csv(outpath, index=False)
         pass
+
+
+if __name__ == '__main__':
+    pass

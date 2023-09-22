@@ -1,12 +1,30 @@
+#!/usr/bin/env python
+
+
+"""
+Coda analysis module
+
+This module provides functions for coda data analysis, focusing on
+spectral analysis and peak detection.
+
+"""
+
+
 # Python Standard Library
 
 # Other dependencies
 import numpy as np
-from scipy.signal import find_peaks, savgol_filter, medfilt
+
+from scipy.signal import find_peaks, medfilt
 from scipy.stats import linregress
 
-# Local files
 from tonus.preprocess import butter_bandpass_filter
+
+# Local files
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
 
 
 def peak_width_half_abs_height(freq, fft, peak):
@@ -28,14 +46,24 @@ def peak_width_half_abs_height(freq, fft, peak):
 
     Parameters
     ----------
-    freq : np 1d array
-    fft : np 1d array
-    peak : index of the peak in freq and fft
+    freq : numpy.ndarray
+        1D array containing the frequency values.
+
+    fft : numpy.ndarray
+        1D array containing the magnitude values of the FFT spectrum.
+
+    peak : int
+        Index of the peak in the 'freq' and 'fft' arrays
+
     Returns
     -------
     freq_left : float
+        Frequency at the left boundary of the half-height range of the peak.
+
     freq_right : float
+        Frequency at the right boundary of the half-height range of the peak.
     """
+
     # Slice from peak to the left
     fft_left = np.flip(fft[:peak+1], axis=0)
     freq_left = np.flip(freq[:peak+1], axis=0)
@@ -60,7 +88,7 @@ def peak_width_half_abs_height(freq, fft, peak):
 
     i = 0
     while fft_right[i] >= fft[peak]/2:
-        idx_rl =  i
+        idx_rl = i
         i += 1
     idx_rr = i
 
@@ -70,61 +98,114 @@ def peak_width_half_abs_height(freq, fft, peak):
     e_rl = fft_right[idx_rl]
     e_rr = fft_right[idx_rr]
 
-    freq_right = ((fft[peak]/2 - e_rl)*(f_rr - f_rl))/(e_rr -e_rl) + f_rl
+    freq_right = ((fft[peak]/2 - e_rl)*(f_rr - f_rl))/(e_rr - e_rl) + f_rl
 
-    width = freq_right - freq_left
     return freq_left, freq_right
 
 
-def get_peaks(tr, freqmin, freqmax, order, factor, distance_Hz=0.3,
-              prominence_min=0.04, threshold=0.01, window_length_Hz=3):
+def get_peaks(
+    tr,
+    freqmin,
+    freqmax,
+    order,
+    factor,
+    distance_Hz=0.3,
+    prominence_min=0.04,
+    window_length_Hz=3
+):
     """
+    Analyzes a time series signal to detect and characterize peaks in its
+    frequency spectrum and perform related calculations.
 
+    Parameters:
+    -----------
+    tr : ObsPy Trace object
+        The time series data to be analyzed.
 
+    freqmin : float
+        The minimum frequency (in Hz) for the bandpass filter.
 
-    Parameters
-    ----------
+    freqmax : float
+        The maximum frequency (in Hz) for the bandpass filter.
 
-    Returns
-    -------
-    a : in micrometers per second
+    order : int
+        The order of the bandpass filter.
+
+    factor : float
+        A scaling factor used to determine peak heights.
+
+    distance_Hz : float, optional (default=0.3)
+        The minimum horizontal distance between detected peaks in the frequency
+        domain, in Hz.
+
+    prominence_min : float, optional (default=0.04)
+        Minimum prominence required for a peak to be considered.
+
+    window_length_Hz : float, optional (default=3)
+        The length of the window (in Hz) used for smoothing the spectrum.
+
+    Returns:
+    --------
+    freq : numpy.ndarray
+        Array of frequencies corresponding to the detected peaks.
+
+    fft_norm : numpy.ndarray
+        Normalized magnitude spectrum of the input signal.
+
+    fft_smooth : numpy.ndarray
+        Smoothed version of the magnitude spectrum.
+
+    peaks : list
+        List of indices corresponding to the detected peaks in the magnitude
+        spectrum.
+
+    f : numpy.ndarray
+        Frequencies at which peaks were detected.
+
+    a : numpy.ndarray
+        Amplitudes of the detected peaks, in micrometers per second.
+
+    q_f : list
+        Quality factors (Q) calculated based on peak width at half-maximum.
+
+    q_alpha : float
+        Quality factor (Q) calculated based on the alpha parameter.
 
     """
-
     # Pre-process
     tr.detrend()
-    tr_copy = tr.copy()
     butter_bandpass_filter(tr, freqmin, freqmax, order)
-    # tr.trim(starttime=t2, endtime=t3)
 
     # Compute FFT
     freq = np.fft.rfftfreq(tr.stats.npts, tr.stats.delta)
-    fft  = np.abs(np.fft.rfft(tr.data))
+    fft = np.abs(np.fft.rfft(tr.data))
 
     # Normalize to make parameters standard
     fft_norm = fft.copy()/fft.max()
 
-    # Get samples per Hz 
+    # Get samples per Hz
     nyquist = tr.stats.sampling_rate/2
-    fft_sampling_rate = len(fft)/nyquist # Samples per Hz
+    fft_sampling_rate = len(fft)/nyquist  # Samples per Hz
 
     # Convert parameters: Hz to samples
-    distance = distance_Hz * fft_sampling_rate # Samples / Hz * Hz 
+    distance = distance_Hz * fft_sampling_rate  # Samples / Hz * Hz
     if distance < 1:
         distance = 1
 
     window_length = int(window_length_Hz * fft_sampling_rate)
-    if window_length%2 == 0:
+    if window_length % 2 == 0:
         window_length += 1
 
     # Smooth FFT
-    # fft_smooth = savgol_filter(fft_norm, window_length=window_length,
-    #                            polyorder=1)
     fft_smooth = medfilt(fft_norm, kernel_size=window_length)
+
     # Find peaks
-    peaks, properties = find_peaks(fft_norm, height=(factor*fft_smooth, None),
-                                   distance=distance,
-                                   prominence=(prominence_min, None))
+    peaks, properties = find_peaks(
+        fft_norm,
+        height=(factor*fft_smooth, None),
+        distance=distance,
+        prominence=(prominence_min, None)
+    )
 
     if len(peaks) == 0:
         return freq, fft_norm, fft_smooth, [], [], [], [], []
@@ -143,7 +224,7 @@ def get_peaks(tr, freqmin, freqmax, order, factor, distance_Hz=0.3,
     time, amplitude = [], []
     for window in tr.slide(window_length=2, step=1):
         amplitude.append(np.sqrt(np.mean(window.data**2)))
-        win_time = (window.stats.starttime-tr.stats.starttime)
+        win_time = (window.stats.starttime - tr.stats.starttime)
         time.append(win_time)
     time = np.asarray(time)
     amplitude = np.asarray(amplitude)
@@ -151,8 +232,12 @@ def get_peaks(tr, freqmin, freqmax, order, factor, distance_Hz=0.3,
         time, np.log(amplitude)
     )
     # f_dom = f[fft[peaks].argmax()]
-    f_1   = f[0]
+    f_1 = f[0]
     # q_alpha = (np.pi*f_dom)/-slope
     q_alpha = (np.pi*f_1)/-slope
 
     return freq, fft_norm, fft_smooth, peaks, f, a, q_f, q_alpha
+
+
+if __name__ == '__main__':
+    pass

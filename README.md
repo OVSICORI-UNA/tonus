@@ -1,8 +1,26 @@
-# Installation
+# TODO
 
-## Python
+1. Remove the table event
+1. An example with FDSN connection for 'detect'
+1. a figure for the intro showing tornillo, multichromatic and harmonic tremor
+1. Documentation
+1. write docstrings
+1. write code authorship
+1. Change documentation for conda env
+1. Details on how the postgresql must be configured
+
+# Software installation
+
+`tonus` requieres two different installations:
+
+1. Python for `tonus` software in a *local* computer
+2. PostgreSQL for the database in a *remote* or local computer
+
+## Python - local computer
 
 ### Anaconda
+
+<!-- TODO: change this -->
 
 You must have Anaconda in your system.  Create a `conda` environment with dependencies:
 
@@ -21,71 +39,67 @@ Clone the repository:
 Install the package in the `conda` environment created previously:
 
     (myenv) $ cd tonus
-    (myenv) $ pip install -e .
+    (myenv) $ python setup.py develop
 
-## PostgreSQL
+Copy the configuration file:
 
-Install PostgreSQL [PostgreSQL](https://www.postgresql.org/download/linux/ubuntu/) wherever your database will reside.
+    cp example/tonus.toml ~/.tonus.toml
 
+## PostgreSQL - remote/local computer
 
-# Configuration file
+Install PostgreSQL [PostgreSQL](https://www.postgresql.org/download/) wherever your database will reside.
+Start the server. You will have to configure PostgreSQL.
 
-Create your configuration file `~/.tonus.json`, by copying *and* modifying the following:
-    {
-        "fdsn": {
-            "ip": "",
-            "port": ""
-        },
-        "inventory": "/Users/leo/.tonus_inventory.xml", 
-        "db": {
-            "host": "",
-            "user": "",
-            "password": "",
-            "database": ""
-        },
-        "network": "NN,NN",
-        "max_radius": 4,
-        "swarm_dir": "/path/to/swarm.csv",
-        "duration": 40,
-        "spectrogram": {
-            "nfft": 256,
-            "mult": 8,
-            "per_lap": 0.9,
-            "ymin": 0.1,
-            "ymax": 30,
-            "dbscale": true,
-            "cmap": "rainbow",
-            "std_factor": 4
-        },
-        "process": {
-            "freqmin": 1,
-            "freqmax": 15,
-            "order": 4,
-            "factor": 4
-            "distance_Hz": 0.75
-        }
-    }
+# Set-up the database
 
-# Set the database
-## Define your volcanoes
+## Inventory
 
-Create a `csv` like the following example, let's call it `volcanoes.csv`:
+You will need an station inventory to work with `tonus` at any time.
+This inventory will determine the stations that will be available in the database and can be used in the program.
+The path to the inventory must be in the configuration file.
 
-    | volcano            | latitude | longitude |
-    |--------------------|----------|-----------|
-    | Rincón de la Vieja |   10.831 |   -85.336 |
+If your waveserver can provide it, the inventory can be downloaded from the it.
+For example:
 
-## Create the database
+```python
+import tonus
 
-    (myenv) $ tonus-db volcanoes.csv
+c = tonus.config.set_conf()
 
-## Clean the database
+client = tonus.waveserver.connect(**c.waveserver)
 
-Use your database manager (e.g. DBeaver) to:
-* Remove repeated stations (older stations or repeating in near but different volcanoes):
-    * find out the `id` of the volcano,
-    * filter the `station` table with `volcano_id = {id}`
-    * Remove the row
+inventory = client.get_stations(
+    level='response',
+    endafter=obspy.UTCDateTime.now(),
+    network='OV'
+)
+inventory.write('path/to/inventory.xml', format='STATIONXML')
+```
+
+## Configuration file
+
+First you'll need to modify the following lines of the configuration file:
+
+```toml
+inventory = "path/to/inventory"
+
+[db]
+host = "localhost"  # IP or "localhost"
+user = "user"
+password = "password"
+database = "tonus"
+```
+
+## Run the setup scripts:
+
+1. Create the database by running `tonus-db`.
+2. Populate the database with the volcano and stations information:
+
+    tonus-db-populate example/volcanoes.csv
+
+The first step will be executed only once.
+On the other hand, you can run step 2 multiple times, in case you need to add
+new stations or volcanoes. No duplicate volcanoes or stations will be created.
 
 # Automatic detection
 

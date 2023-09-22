@@ -1,8 +1,25 @@
-from os import path
-import json
+#!/usr/bin/env python
 
 
-CONF_FILEPATH = path.join(path.expanduser('~'), '.tonus.json')
+"""
+This modules handles the configuration file.
+"""
+
+
+# Python Standard Library
+import os
+import tomllib
+
+# Other dependencies
+
+# Local files
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
+
+
+CONF_FILEPATH = os.path.join(os.path.expanduser('~'), '.tonus.toml')
 
 
 class Conf(dict):
@@ -50,7 +67,13 @@ class Conf(dict):
         del self.__dict__[key]
 
 
-def set_conf():
-    with open(CONF_FILEPATH) as f:
-        c = Conf(json.load(f))
+def set_conf(filepath=None):
+    if filepath is None:
+        filepath = CONF_FILEPATH
+    with open(filepath, 'rb') as f:
+        c = Conf(tomllib.load(f))
     return c
+
+
+if __name__ == '__main__':
+    pass

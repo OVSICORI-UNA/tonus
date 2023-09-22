@@ -1,56 +1,37 @@
+#!/usr/bin/env python
+
+
+"""
+"""
+
+
 # Python Standard Library
 import logging
 
 # Other dependencies
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from obspy.geodetics.base import kilometers2degrees, gps2dist_azimuth
 
 # Local files
-from tonus import schema
 
 
-def create_database(conn, database):
-    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-    with conn:
-        c = conn.cursor()
-        c.execute(f'CREATE DATABASE {database};')
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
 
 
-def get_create_table_sql(table_schema):
-    query = f'CREATE TABLE {table_schema.name} (\n'
-
-    query += '\n'.join(
-        f'\t{c} {t},' for c, t in table_schema.columns
-    )
-
-    for i, constraint in enumerate(table_schema.constraints):
-        query += '\n\t' + constraint
-        if i != len(table_schema.constraints) - 1:
-            query += ','
-
-    query += '\n)'
-    query += ';'
-    return query
-
-
-def create_tables(conn):
-    table_schemas = [
-        schema.volcano,
-        schema.station,
-        schema.channel,
-        schema.event,
-        schema.coda,
-        schema.coda_peaks,
-    ]
-
-    for table_schema in table_schemas:
-        with conn:
-            c = conn.cursor()
-            c.execute(get_create_table_sql(table_schema))
-
-    with conn:
-        c = conn.cursor()
-        c.execute('CREATE INDEX discrete_id_idx ON event USING btree (id);')
+def get_column_names(table_name, conn):
+    query = f"""
+    SELECT
+        column_name
+    FROM
+        information_schema.columns
+    WHERE
+        table_name = '{table_name}'
+    AND
+        column_name != 'id';
+    """
+    cursor = conn.cursor()
+    cursor.execute(query)
+    return [row[0] for row in cursor]
 
 
 def insert_volcano_stations(
@@ -58,7 +39,7 @@ def insert_volcano_stations(
 ):
     print('\n', volcano.center(80, '-'))
 
-    query_volcano = f"""
+    query_volcano = """
     INSERT INTO volcano
         (volcano, latitude, longitude)
     VALUES
@@ -66,10 +47,18 @@ def insert_volcano_stations(
     RETURNING id
     """
     values = (volcano, latitude, longitude)
-    with conn:
-        cur = conn.cursor()
-        cur.execute(query_volcano, values)
-        volcano_id = cur.fetchone()[0]
+    try:
+        with conn:
+            cur = conn.cursor()
+            cur.execute(query_volcano, values)
+    except Exception as e:
+        print(e)
+        _query = f"SELECT id FROM volcano WHERE volcano = '{volcano}';"
+
+        with conn:
+            cur = conn.cursor()
+            cur.execute(_query)
+    volcano_id = cur.fetchone()[0]
 
     try:
         _inventory = inventory.select(
@@ -83,8 +72,8 @@ def insert_volcano_stations(
         )
         return
 
-    station_columns = [c[0] for c in schema.station.columns if c[0] != 'id']
-    values_fmt      = ', '.join('%s' for c in station_columns)
+    station_columns = get_column_names('station', conn)
+    values_fmt = ', '.join('%s' for c in station_columns)
 
     query_station = f"""
     INSERT INTO
@@ -95,8 +84,8 @@ def insert_volcano_stations(
         id
     """
 
-    channel_columns = [c[0] for c in schema.channel.columns if c[0] != 'id']
-    values_fmt      = ', '.join('%s' for c in channel_columns)
+    channel_columns = get_column_names('channel', conn)
+    values_fmt = ', '.join('%s' for c in channel_columns)
 
     query_channel = f"""
     INSERT INTO
@@ -168,3 +157,22 @@ def insert_volcano_stations(
                     cur = conn.cursor()
                     cur.execute(query_channel, values)
     return
+
+
+def remove_duplicates(conn):
+    query = """
+    DELETE FROM station
+    WHERE id IN (
+            SELECT id FROM station
+            EXCEPT SELECT MIN(id) FROM station
+            GROUP BY station, latitude, longitude
+    );
+    """
+    with conn:
+        c = conn.cursor()
+        c.execute(query)
+    return
+
+
+if __name__ == '__main__':
+    pass

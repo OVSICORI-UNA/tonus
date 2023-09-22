@@ -1,15 +1,25 @@
 #!/usr/bin/env python
 
+
+"""
+Launches tonus
+"""
+
+
 # Python Standard Library
 
 # Other dependencies
 import logging
+import tonus
 
 # Local files
-from tonus.gui.root import Root
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
-    Root().mainloop()
+    tonus.gui.root.Root().mainloop()

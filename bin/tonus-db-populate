@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+
+
+"""
+"""
+
+
+# Python Standard Library
+import argparse
+
+# Other dependencies
+import pandas as pd
+import psycopg2
+
+from obspy import read_inventory
+from tonus.config import set_conf
+
+
+# Local files
+from tonus.database import insert_volcano_stations, remove_duplicates
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        'volcfile',
+        help='CSV file with volcanoes information'
+    )
+
+    parser.add_argument(
+        '-r',
+        '--max_radius',
+        help='Maximum distance between volcano and stations',
+        default=4,
+    )
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    c = set_conf()
+
+    conn = psycopg2.connect(**c.db)
+
+    # Read or download the inventory
+    inventory = read_inventory(c.inventory)
+
+    # Load the volcanoes list
+    df = pd.read_csv(args.volcfile)
+    df = df.sort_values(
+        by=['longitude', 'latitude'], ascending=[True, False]
+    )
+    df = df.reset_index()
+    for i, row in df.iterrows():
+        insert_volcano_stations(
+            inventory,
+            row.volcano,
+            row.latitude,
+            row.longitude,
+            args.max_radius,
+            conn
+        )
+    remove_duplicates(conn)
+    return
+
+
+if __name__ == '__main__':
+    main()

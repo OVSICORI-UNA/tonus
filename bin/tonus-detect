@@ -1,20 +1,27 @@
 #!/usr/bin/env python
 
+
+"""
+"""
+
 # Python Standard Library
 import argparse
-from datetime import date, timedelta
 import logging
-from os import path
+import os
+
+from datetime import date, timedelta
 
 # Other dependencies
-from obspy.clients.fdsn import Client
-from obspy import read, UTCDateTime
+import obspy
+import tonus
+
 from obspy.signal.trigger import coincidence_trigger
 
 # Local files
-from tonus.config import set_conf
-from tonus.detection.preprocess import preprocess
-from tonus.detection.process import get_cft
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
 
 
 def parse_args():
@@ -22,200 +29,103 @@ def parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser_waves = parser.add_argument_group('Waveforms')
-    parser_waves.add_argument(
-        '--stations',
-        default='CVTR,VTCE,VTCG',
-        help='Comma-separated list of stations'
-    )
-    parser_waves.add_argument(
-        '--channel',
-        default='HHZ',
-        help='Channel'
-    )
-    parser_waves.add_argument(
+    parser.add_argument(
         '--starttime',
-        default=UTCDateTime(date.today() - timedelta(days=1)),
+        default=obspy.UTCDateTime(date.today() - timedelta(days=1)),
         help='Start time',
-        type=UTCDateTime,
+        type=obspy.UTCDateTime,
     )
-    parser_waves.add_argument(
+    parser.add_argument(
         '--endtime',
-        default=UTCDateTime(date.today()),
+        default=obspy.UTCDateTime(date.today()),
         help='End time',
-        type=UTCDateTime,
+        type=obspy.UTCDateTime,
     )
 
-    parser_filter = parser.add_argument_group('Filter')
-    parser_filter.add_argument(
-        '--freqmin',
-        default=2,
-        type=float,
-        help='Bandpass filter minimum frequency',
-    )
-    parser_filter.add_argument(
-        '--freqmax',
-        default=24,
-        type=float,
-        help='Bandpass filter maximum frequency',
-    )
-    parser_filter.add_argument(
-        '--order',
-        default=4,
-        type=int,
-        help='Bandpass filter order',
-    )
-
-    parser_window = parser.add_argument_group('Windowing')
-    parser_window.add_argument(
-        '--long_win',
-        default=60,
-        type=float,
-        help='Long window length in seconds',
-    )
-    parser_window.add_argument(
-        '--short_win',
-        default=10,
-        type=float,
-        help='Short window length in seconds',
-    )
-    parser_window.add_argument(
-        '--overlap',
-        default=0.9,
-        type=float,
-        help='Overlap fraction (0-1) between short windows',
-    )
-    parser_window.add_argument(
-        '--pad',
-        default=0.1,
-        type=float,
-        help='Taper pad fraction (0-1) of short window',
-    )
-
-    parser_tonality = parser.add_argument_group('Tonality computation')
-    parser_tonality.add_argument(
-        '--k',
-        default=4,
-        type=int,
-        help='Number of top-k peaks to check'
-    )
-    parser_tonality.add_argument(
-        '--bin_width',
-        default=3,
-        type=float,
-        help='Width of the bin around each peak'
-    )
-
-    parser_detection = parser.add_argument_group('Detection')
-    parser_detection.add_argument(
-        '--thr_on',
-        default=1.8,
-        type=float,
-        help='Threshold on'
-    )
-    parser_detection.add_argument(
-        '--thr_off',
-        default=1,
-        type=float,
-        help='Threshold off'
-    )
-    parser_detection.add_argument(
-        '--thr_coincidence_sum',
-        default=2,
-        type=int,
-        help='Threshold coincidence sum (number of stations/channels)'
-    )
-    parser_detection.add_argument(
-        '--max_trigger_length',
-        default=30,
-        type=float,
-        help='Max trigger length (useful to remove harmonic tremor)'
-    )
-    parser_detection.add_argument(
-        '--delete_long_trigger',
-        default=True,
-        type=bool,
-        help='See obspy.signal.trigger.coincidence_trigger documentation'
-    )
-
-    parser_output = parser.add_argument_group('Output')
-    parser_output.add_argument(
-        '--output_dir',
-        default='.',
-        help='Output directory'
-    )
-    parser_output.add_argument(
-        '--swarm_str',
-        default='CVTR HHZ TC --',
-        help='Swarm csv file waveform ID column value'
-    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
 
-    c = set_conf()
-
-
-    # TODO files
-    url = f'http://{c.waveserver.ip}:{c.waveserver.port}'
-    logging.info(f'Connecting to {url}...')
-    client = Client(url)
-    logging.info('Succesfully connected to FDSN client.')
-
+    c = tonus.config.set_conf()
 
     logging.info('Downloading waveforms...')
-    st = client.get_waveforms(
-        c.network, args.stations, '*', args.channel,
-        args.starttime, args.endtime
-    )
-    st.merge(fill_value='interpolate', interpolation_samples=-1)
+    if c.waveserver.name in 'fdsn earthworm'.split():
+        client = tonus.waveserver.connect(**c.waveserver)
 
+        st = client.get_waveforms(
+            ','.join(c.detect.waveforms.network),
+            ','.join(c.detect.waveforms.station),
+            ','.join(c.detect.waveforms.location),
+            ','.join(c.detect.waveforms.channel),
+            args.starttime,
+            args.endtime
+        )
+    elif c.waveserver.name == 'files':
+        st = obspy.Stream()
+        for filename in os.listdir(c.detect.io.input_dir):
+            filepath = os.path.join(c.detect.io.input_dir, filename)
+            try:
+                st += obspy.read(filepath)
+            except Exception as e:
+                print(e)
+
+    for tr in st:
+        if tr.stats.station not in c.detect.waveforms.station \
+           or tr.stats.channel not in c.detect.waveforms.channel:
+            st.remove(tr)
+
+    st.merge(fill_value='interpolate', interpolation_samples=-1)
+    st.trim(args.starttime, args.endtime)
 
     logging.info('Pre-processing...')
-    preprocess(st, args.freqmin, args.freqmax, args.order)
+    tonus.detection.preprocess.preprocess(st, **c.detect.filter)
 
-
+    # Copy, since the get_cft modifies
     _st = st.copy()
     logging.info('Computing characteristic functions...')
     for tr in _st:
         logging.info(tr.stats.station + '-' + tr.stats.channel)
-        get_cft(
+        tonus.detection.process.get_cft(
             tr,
-            args.short_win, args.overlap, args.pad,
-            args.k, args.bin_width,
-            args.long_win
+            c.detect.window.short_win,
+            c.detect.window.overlap,
+            c.detect.window.pad,
+            c.detect.tonality.k,
+            c.detect.tonality.bin_width,
+            c.detect.window.long_win,
         )
-
-
 
     logging.info('Detecting events...')
     events = coincidence_trigger(
-        None, args.thr_on, args.thr_off, _st, args.thr_coincidence_sum,
-        max_trigger_length=args.max_trigger_length,
-        delete_long_trigger=args.delete_long_trigger
+        None,
+        c.detect.trigger.thr_on,
+        c.detect.trigger.thr_off,
+        _st,
+        c.detect.trigger.thr_coincidence_sum,
+        max_trigger_length=c.detect.trigger.max_trigger_length,
+        delete_long_trigger=c.detect.trigger.delete_long_trigger
     )
-
 
     logging.info('Writing output...')
-    output = open(
-        path.join(args.output_dir, 'tonus_detect_output.csv'),
-        'w'
+    swarm_str = (
+        f'{c.detect.waveforms.station[0]} '
+        f'{c.detect.waveforms.channel[0]} '
+        f'{c.detect.waveforms.network[0]}'
     )
+    output = open(c.detect.io.output_file, 'w')
     for event in events:
         t = event['time'].datetime.strftime('%Y-%m-%d %H:%M:%S')
-        output.write(f'{t},{args.swarm_str},{int(event["duration"])}\n')
+        output.write(f'{t},{swarm_str},{int(event["duration"])}\n')
 
-
-    # tr = st.select(station='CVTR', channel='HHZ')[0]
     st[0].plot(type='dayplot', events=events)
     return
 
 
 if __name__ == '__main__':
-    LEVEL   = logging.INFO
-    FORMAT  = '%(asctime)s %(levelname)s: %(message)s'
+    LEVEL = logging.INFO
+    FORMAT = '%(asctime)s %(levelname)s: %(message)s'
     DATEFMT = '%Y-%m-%d %H:%M:%S'
 
     logging.basicConfig(level=LEVEL, format=FORMAT, datefmt=DATEFMT)

@@ -1,26 +1,33 @@
 #!/usr/bin/env python
 
+
+"""
+"""
+
+
 # Python Standard Library
 import logging
 import tkinter as tk
 
 # Other dependencies
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tonus
+
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk
 )
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.widgets import MultiCursor
-import numpy as np
 from obspy import UTCDateTime
-import pandas as pd
 
 # Local files
-from tonus.process.coda import get_peaks
-from tonus.gui import frames
-from tonus.gui.plotting import spectrogram, plot_db
-from tonus.gui.utils import isfloat, open_window, select_trace, Table
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
 
 
 class AppCoda(tk.Toplevel):
@@ -36,20 +43,24 @@ class AppCoda(tk.Toplevel):
 
         self.wm_title('tonus - tonal coda')
         self.font_title = master.font_title
-        self.bd         = master.bd
-        self.relief     = master.relief
+        self.bd = master.bd
+        self.relief = master.relief
 
         # Menu bar
-        self.menubar = frames.FrameMenu(self)
+        self.menubar = tonus.gui.frames.FrameMenu(self)
 
+        txt = (
+            'Pick with right-click button 3 times'
+            ': 1. event start; 2. coda start; and 3. coda end.'
+        )
         # Frames initiation
-        self.frm_waves   = frames.FrameWaves(self)
-        self.frm_tr_select   = frames.FrameTraceSelection(self)
-        self.frm_plt     = frames.FramePlot(
-            self, 'Pick with right-click button (3 times)'
+        self.frm_waves = tonus.gui.frames.FrameWaves(self)
+        self.frm_tr_select = tonus.gui.frames.FrameTraceSelection(self)
+        self.frm_plt = tonus.gui.frames.FramePlot(
+            self, txt
         )
         self.frm_process = self.FrameProcess(self)
-        self.frm_output  = frames.FrameOutput(self)
+        self.frm_output = tonus.gui.frames.FrameOutput(self)
 
         # Frames gridding
         self.menubar.grid(row=0, column=0, sticky='nw', columnspan=2)
@@ -63,8 +74,6 @@ class AppCoda(tk.Toplevel):
         self.bind('<r>', self.process)
         self.bind('<f>', self.select_next_trace)
 
-
-
     class FrameProcess(tk.LabelFrame):
         def __init__(self, master):
             super().__init__(
@@ -74,11 +83,11 @@ class AppCoda(tk.Toplevel):
                 bd=master.bd,
                 relief=master.relief,
             )
-            validatefloat = self.register(isfloat)
+            validatefloat = self.register(tonus.gui.utils.isfloat)
 
             width = 4
 
-            self.filter_lf= tk.LabelFrame(
+            self.filter_lf = tk.LabelFrame(
                 self,
                 text='Butterworth bandpass filter',
             )
@@ -92,7 +101,6 @@ class AppCoda(tk.Toplevel):
                     var, indx, mode, 'freqmin', self.freqmin_svr
                 )
             )
-
 
             self.freqmin_ent = tk.Entry(
                 self.filter_lf, textvariable=self.freqmin_svr, width=width,
@@ -178,7 +186,8 @@ class AppCoda(tk.Toplevel):
         def set_conf_change(self, var, indx, mode, key, tkvar):
             try:
                 self.master.c.process.coda.__setitem__(key, tkvar.get())
-            except:
+            except Exception as e:
+                print(e)
                 pass
 
     class WindowResults(tk.Toplevel):
@@ -187,7 +196,9 @@ class AppCoda(tk.Toplevel):
             self.master = master
             self.title('Output')
 
-            self.quit_btn = tk.Button(self, text='Close', command=self._destroy)
+            self.quit_btn = tk.Button(
+                self, text='Close', command=self._destroy
+            )
 
             self.peaks_lf = tk.LabelFrame(self, text='Peaks detected')
 
@@ -202,12 +213,13 @@ class AppCoda(tk.Toplevel):
                 self.channels_lbx.select_set(0)
                 self.channels_lbx.event_generate('<<ListboxSelect>>')
                 self.channels_lbx.focus_set()
-            except:
+            except Exception as e:
+                print(e)
                 pass
 
-            header = ['Frequency [Hz]', 'Amplitude [um/s]', 'Q_f']
+            header = ['Frequency [Hz]', 'Relative amplitude', 'Q']
 
-            table = Table(self.peaks_lf, header, [])
+            tonus.gui.utils.Table(self.peaks_lf, header, [])
 
             self.submit_btn = tk.Button(
                 self,
@@ -231,7 +243,7 @@ class AppCoda(tk.Toplevel):
                 return
             stacha = self.channels_lbx.get(selection[0])
 
-            header = ['Frequency [Hz]', 'Amplitude [um/s]', 'Q_f']
+            header = ['Frequency [Hz]', 'Relative amplitude', 'Q']
 
             frequency = [
                 round(f, 2) for f in
@@ -239,9 +251,11 @@ class AppCoda(tk.Toplevel):
             ]
 
             amplitude = [
-                round(a, 2) for a in
-                self.master.results[stacha]['peaks']['amplitude']
+                a for a in self.master.results[stacha]['peaks']['amplitude']
             ]
+            amplitude = np.array(amplitude)
+            amplitude /= amplitude.max()
+            amplitude = np.round(amplitude, decimals=3)
 
             q_f = [
                 round(q, 0) for q in
@@ -252,7 +266,7 @@ class AppCoda(tk.Toplevel):
             for widget in self.peaks_lf.winfo_children():
                 widget.destroy()
 
-            table = Table(self.peaks_lf, header, columns)
+            tonus.gui.utils.Table(self.peaks_lf, header, columns)
 
         def submit(self):
             submitted = False
@@ -268,15 +282,21 @@ class AppCoda(tk.Toplevel):
 
             if self.master.event_id is None:
                 volcano = self.master.frm_waves.volcanoes_sv.get()
-                cur.execute(f"SELECT id FROM volcano WHERE volcano = '{volcano}';")
+                cur.execute(
+                    f"SELECT id FROM volcano WHERE volcano = '{volcano}';"
+                )
                 volcano_id = cur.fetchone()[0]
 
                 starttimes, endtimes = [], []
                 for stacha in self.master.results.keys():
-                    starttimes.append(UTCDateTime(self.master.results[stacha]['t1']))
-                    endtimes.append(UTCDateTime(self.master.results[stacha]['t3']))
+                    starttimes.append(
+                        UTCDateTime(self.master.results[stacha]['t1'])
+                    )
+                    endtimes.append(
+                        UTCDateTime(self.master.results[stacha]['t3'])
+                    )
                 starttime = min(starttimes).datetime
-                endtime   = max(endtimes).datetime
+                endtime = max(endtimes).datetime
 
                 sql_str = f"""
                 INSERT INTO event(starttime, endtime, volcano_id)
@@ -316,11 +336,11 @@ class AppCoda(tk.Toplevel):
                     cur.execute(sql_str)
                     coda_id = cur.fetchone()[0]
 
-                    frequency = self.master.results[stacha]['peaks']['frequency']
-                    amplitude = self.master.results[stacha]['peaks']['amplitude']
-                    q_f       = self.master.results[stacha]['peaks']['q_f']
+                    freq = self.master.results[stacha]['peaks']['frequency']
+                    ampl = self.master.results[stacha]['peaks']['amplitude']
+                    q_f = self.master.results[stacha]['peaks']['q_f']
 
-                    for f, a, q in zip(frequency, amplitude, q_f):
+                    for f, a, q in zip(freq, ampl, q_f):
                         cur.execute(
                             f"""
                             INSERT INTO
@@ -341,8 +361,6 @@ class AppCoda(tk.Toplevel):
                 tk.messagebox.showinfo('Submission succesful',
                                        'Data has been written to the database')
                 self._destroy()
-
-
 
     def check_event(self):
         pre_pick = 20
@@ -392,11 +410,11 @@ class AppCoda(tk.Toplevel):
                 WHERE id IN ({channel_ids})
                 """
                 df = pd.read_sql_query(query, self.conn)
-                stachas = ', '.join(
-                    [f'{row.station} {row.channel}' for i, row in df.iterrows()]
-                )
+                stachas = ', '.join([
+                    f'{row.station} {row.channel}' for i, row in df.iterrows()
+                ])
 
-                text=(
+                text = (
                     'There is already an analysed event '
                     f'(ID = {self.event_id}), '
                     f'in the time range requested '
@@ -406,9 +424,10 @@ class AppCoda(tk.Toplevel):
                 )
                 tk.messagebox.showwarning('Event already analysed', text)
             else:
-                text=(
-                    f'There is already an event (ID = {self.event_id}) in the database '
-                    'in the time range requested, but not analysed yet. '
+                text = (
+                    f'There is already an event (ID = {self.event_id}) in the '
+                    'database in the time range requested, '
+                    'but not analysed yet. '
                     'Any further results will be associated to this event.'
                 )
                 tk.messagebox.showwarning('Event in database', text)
@@ -416,7 +435,7 @@ class AppCoda(tk.Toplevel):
             self.event_id = None
 
     def _select_trace(self, event):
-        select_trace(self)
+        tonus.gui.utils.select_trace(self)
 
     def select_next_trace(self, event):
         selected_trace = self.frm_tr_select.stacha_lbx.curselection()[0]
@@ -427,23 +446,26 @@ class AppCoda(tk.Toplevel):
             self.frm_tr_select.stacha_lbx.select_set(selected_trace+1)
             self.frm_tr_select.stacha_lbx.event_generate('<<ListboxSelect>>')
         else:
-            open_window(self, self.WindowResults(self))
+            tonus.gui.utils.open_window(self, self.WindowResults(self))
 
     def plot(self):
         tr = self.tr.copy()
         tr.data = tr.data * 1e6
         stacha = f'{tr.stats.station} {tr.stats.channel}'
 
-        time_str = str(tr.stats.starttime)[:-8].replace('T',' ')
+        # time_str = str(tr.stats.starttime)[:-8].replace('T', ' ')
 
-        time = np.arange(0, tr.stats.npts/tr.stats.sampling_rate, tr.stats.delta)
+        time = np.arange(
+            0, tr.stats.npts/tr.stats.sampling_rate, tr.stats.delta
+        )
         if len(time) > len(tr.data):
             time = time[:-1]
 
         self.fig = plt.figure(figsize=(8, 6))
 
-        self.fig.subplots_adjust(left=.09, bottom=.07, right=.94, top=0.962,
-                            wspace=.04, hspace=.12)
+        self.fig.subplots_adjust(
+            left=.09, bottom=.07, right=.94, top=0.962, wspace=.04, hspace=.12
+        )
 
         gs = gridspec.GridSpec(nrows=2, ncols=2, width_ratios=[2, 1],
                                height_ratios=[1, 3])
@@ -462,13 +484,12 @@ class AppCoda(tk.Toplevel):
         _ax1.set_navigate(False)
         _ax1.set_xlim(ax1.get_xlim())
         _ax1.set_ylim(ax1.get_ylim())
-        _ax1.set_ylabel('Amplitude [$\mu m/s$]')
+        _ax1.set_ylabel(r'Amplitude [$\mu m/s$]')
 
         ax2 = self.fig.add_subplot(gs[1, 0], sharex=ax1)
-        spectrogram(self.c, tr, ax2)
+        tonus.gui.plotting.spectrogram(self.c, tr, ax2)
         ax2.set_ylabel('Frequency [Hz]')
         ax2.set_xlabel('Time [s]')
-
 
         def on_lims_change(axes):
             try:
@@ -479,7 +500,8 @@ class AppCoda(tk.Toplevel):
                 margin = (y.max() - y.min()) * 0.05
                 _ax1.set_ylim(y.min()-margin, y.max()+margin)
                 ax1.set_ylim(y.min()-margin, y.max()+margin)
-            except:
+            except Exception as e:
+                print(e)
                 return
         ax1.callbacks.connect('xlim_changed', on_lims_change)
         ax1.callbacks.connect('ylim_changed', on_lims_change)
@@ -537,7 +559,9 @@ class AppCoda(tk.Toplevel):
 
         factor = float(self.frm_process.factor_ent.get())
 
-        freq, fft_norm, fft_smooth, peaks, f, a, q_f, q_alpha = get_peaks(
+        (
+            freq, fft_norm, fft_smooth, peaks, f, a, q_f, q_alpha
+        ) = tonus.process.coda.get_peaks(
             _tr,
             float(self.frm_process.freqmin_ent.get()),
             float(self.frm_process.freqmax_ent.get()),
@@ -558,17 +582,29 @@ class AppCoda(tk.Toplevel):
         # Plot
         try:
             self.fig.get_axes()[3].remove()
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
-        ax3 = self.fig.add_subplot(self.gs[1, 1], sharey=self.fig.get_axes()[2])
+        ax3 = self.fig.add_subplot(
+            self.gs[1, 1], sharey=self.fig.get_axes()[2]
+        )
         ax3.clear()
         ax3.plot(fft_norm, freq, label='FFT')
         ax3.plot(factor*fft_smooth, freq, label=f'Smoothed FFT x{factor}')
-        ax3.scatter(fft_norm[peaks], freq[peaks], marker='x',
-                    label='Identified peak', s=50, c='r')
+        ax3.scatter(
+            fft_norm[peaks],
+            freq[peaks],
+            marker='x',
+            label='Identified peak',
+            s=50,
+            c='r'
+        )
         ax3.yaxis.tick_right()
-        ax3.legend(loc='lower left', bbox_to_anchor= (0.0, 1.01))
+        ax3.legend(loc='lower left', bbox_to_anchor=(0.0, 1.01))
         ax3.set_xticks([])
         ax3.set_xlabel('Normalized amplitude')
         self.canvas.draw()
+
+
+if __name__ == '__main__':
+    pass

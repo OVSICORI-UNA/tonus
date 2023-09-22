@@ -1,3 +1,5 @@
+example/
+
 # Compiled python modules.
 *.pyc
 

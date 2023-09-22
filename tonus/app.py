@@ -4,7 +4,6 @@
 from datetime import datetime, timedelta
 import json
 import logging
-from os import path
 import tkinter as tk
 import sys
 

@@ -1,4 +1,19 @@
+#!/usr/bin/env python
+
+
+"""
+"""
+
+
 from setuptools import setup
+
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
+
+
+def main():
+    return
 
 
 def readme():
@@ -6,21 +21,22 @@ def readme():
         return f.read()
 
 
-setup(
-    name             = 'tonus',
-    version          = '0.1',
-    description      = 'Extract tornillo-type event information',
-    long_description =  readme(),
-    url              = 'https://github.com/OVSICORI-UNA/tonus',
-    author           = 'Leonardo van der Laat',
-    author_email     = 'leonardo.vanderlaat.munoz@una.cr',
-    packages         = ['tonus'],
-    install_requires = [
-    ],
-    scripts          = [
-        'bin/tonus',
-        'bin/tonus-db',
-        'bin/tonus-detect',
-    ],
-    zip_safe         = False
-)
+if __name__ == '__main__':
+    setup(
+        name='tonus',
+        version='0.1',
+        description='Analysis tonal seismo-volcanic signals',
+        long_description=readme(),
+        url='https://github.com/OVSICORI-UNA/tonus',
+        author='Leonardo van der Laat',
+        author_email='laat@umich.edu',
+        packages=['tonus'],
+        install_requires=[],
+        scripts=[
+            'bin/tonus',
+            'bin/tonus-db',
+            'bin/tonus-db-populate',
+            'bin/tonus-detect',
+        ],
+        zip_safe=False
+    )

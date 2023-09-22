@@ -94,8 +94,8 @@ def _get_coda_data(channel_ids, conn):
 
     df = pd.read_sql_query(query, conn)
 
-    for t in 't1 t2 t3'.split():
-        df[t] = df[t].dt.tz_convert('America/Guatemala')
+    # for t in 't1 t2 t3'.split():
+        # df[t] = df[t].dt.tz_convert('America/Guatemala')
 
     query = f"""
     SELECT

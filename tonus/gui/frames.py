@@ -65,8 +65,9 @@ class FrameWaves(tk.LabelFrame):
 
         self.swarm_lbx = tk.Listbox(self.swarm_lf, height=3, width=width)
         self.swarm_sb = tk.Scrollbar(self.swarm_lf)
-        self.swarm_lbx.config(yscrollcommand=self.swarm_sb.set,
-                                exportselection=False)
+        self.swarm_lbx.config(
+            yscrollcommand=self.swarm_sb.set, exportselection=False
+        )
         self.swarm_sb.config(command=self.swarm_lbx.yview)
 
         self.starttime_lbl = tk.Label(self, text='Start time')
@@ -79,7 +80,7 @@ class FrameWaves(tk.LabelFrame):
 
         self.duration_lbl = tk.Label(self, text='Duration [s]')
         self.duration_ent = tk.Entry(self, width=width)
-        self.duration_ent.insert(tk.END, self.master.c.duration)
+        self.duration_ent.insert(tk.END, self.master.c.waveforms.duration)
 
         self.download_btn = tk.Button(
             self,
@@ -153,7 +154,7 @@ class FrameWaves(tk.LabelFrame):
 
         self.swarm_file = tk.filedialog.askopenfilename(
             title='Open Swarm labels file',
-            initialdir=self.master.c.swarm_dir,
+            initialdir=self.master.c.waveforms.swarm_dir,
             filetypes=filetypes
         )
 

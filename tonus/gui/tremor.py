@@ -18,7 +18,6 @@ import pandas as pd
 from tonus.gui import frames
 from tonus.gui.utils import isfloat, open_window, select_trace
 from tonus.gui.plotting import spectrogram
-from tonus.gui.queries import get_volcanoes_with_event, get_stacha_with_event
 from tonus.preprocess import butter_bandpass_filter
 from tonus.process.tremor import detect_f1, get_harmonics
 
@@ -36,20 +35,20 @@ class AppTremor(tk.Toplevel):
 
         self.wm_title('tonus - harmonic tremor')
         self.font_title = master.font_title
-        self.bd         = master.bd
-        self.relief     = master.relief
+        self.bd = master.bd
+        self.relief = master.relief
 
         # Menu bar
         self.menubar = frames.FrameMenu(self)
 
         # Frames initiation
-        self.frm_waves     = frames.FrameWaves(self)
+        self.frm_waves = frames.FrameWaves(self)
         self.frm_tr_select = frames.FrameTraceSelection(self)
-        self.frm_plt       = frames.FramePlot(
-            self, 'Pick only in case of pre-tremor LP'
+        self.frm_plt = frames.FramePlot(
+            self, 'Pick LP start (optional)'
         )
         self.frm_process = self.FrameProcess(self)
-        self.frm_output   = frames.FrameOutput(self)
+        self.frm_output = frames.FrameOutput(self)
 
         # Frames gridding
         self.menubar.grid(row=0, column=0, sticky='nw', columnspan=3)
@@ -65,7 +64,6 @@ class AppTremor(tk.Toplevel):
         self.bind('<r>', self.process)
         self.bind('<f>', self.select_next_trace)
 
-
     class FrameProcess(tk.LabelFrame):
         def __init__(self, master):
             super().__init__(
@@ -79,7 +77,7 @@ class AppTremor(tk.Toplevel):
 
             width = 4
 
-            self.filter_lf= tk.LabelFrame(self, text='Bandpass filter',)
+            self.filter_lf = tk.LabelFrame(self, text='Bandpass filter',)
 
             self.lbl_freqmin = tk.Label(self.filter_lf, text='min(f) [Hz]')
             self.freqmin_svr = tk.DoubleVar(self)
@@ -123,10 +121,14 @@ class AppTremor(tk.Toplevel):
                 validate='all', validatecommand=(validatefloat, '%P'),
             )
 
-            self.lf_window= tk.LabelFrame(self, text='Windowing',)
-            self.lbl_window_length = tk.Label(self.lf_window, text='Length [s]')
+            self.lf_window = tk.LabelFrame(self, text='Windowing',)
+            self.lbl_window_length = tk.Label(
+                self.lf_window, text='Length [s]'
+            )
             self.svr_window_length = tk.DoubleVar(self)
-            self.svr_window_length.set(self.master.c.process.tremor.window_length)
+            self.svr_window_length.set(
+                self.master.c.process.tremor.window_length
+            )
             self.svr_window_length.trace(
                 'w',
                 lambda var, indx, mode: self.set_conf_change(
@@ -139,7 +141,9 @@ class AppTremor(tk.Toplevel):
                 validatecommand=(validatefloat, '%P'),
             )
 
-            self.lbl_overlap = tk.Label(self.lf_window, text='Overlap fraction')
+            self.lbl_overlap = tk.Label(
+                self.lf_window, text='Overlap fraction'
+            )
             self.svr_overlap = tk.DoubleVar(self)
             self.svr_overlap.set(self.master.c.process.tremor.overlap)
             self.svr_overlap.trace(
@@ -170,9 +174,12 @@ class AppTremor(tk.Toplevel):
                 validatecommand=(validatefloat, '%P'),
             )
 
-            self.lf_harmonics = tk.LabelFrame(self, text='Harmonics detection',)
+            self.lf_harmonics = tk.LabelFrame(
+                self, text='Harmonics detection',
+            )
             self.lbl_n_harmonics_max = tk.Label(
-                self.lf_harmonics, text='max(n(harmonics))')
+                self.lf_harmonics, text='max(n(harmonics))'
+            )
 
             self.svr_n_harmonics_max = tk.IntVar(self)
             self.svr_n_harmonics_max.set(
@@ -181,7 +188,11 @@ class AppTremor(tk.Toplevel):
             self.svr_n_harmonics_max.trace(
                 'w',
                 lambda var, indx, mode: self.set_conf_change(
-                    var, indx, mode, 'n_harmonics_max', self.svr_n_harmonics_max
+                    var,
+                    indx,
+                    mode,
+                    'n_harmonics_max',
+                    self.svr_n_harmonics_max
                 )
             )
             self.ent_n_harmonics_max = tk.Entry(
@@ -190,9 +201,9 @@ class AppTremor(tk.Toplevel):
                 validatecommand=(validatefloat, '%P'),
             )
 
-
             self.lbl_band_width_Hz = tk.Label(
-                self.lf_harmonics, text='Band width [Hz]')
+                self.lf_harmonics, text='Band width [Hz]'
+            )
 
             self.svr_band_width_Hz = tk.IntVar(self)
             self.svr_band_width_Hz.set(
@@ -210,7 +221,6 @@ class AppTremor(tk.Toplevel):
                 validatecommand=(validatefloat, '%P'),
             )
 
-
             self.factor_lbl = tk.Label(self.lf_harmonics, text='Threshold')
             self.factor_svr = tk.IntVar(self)
             self.factor_svr.set(self.master.c.process.tremor.factor)
@@ -224,7 +234,6 @@ class AppTremor(tk.Toplevel):
                 self.lf_harmonics, textvariable=self.factor_svr, width=width,
                 validate='all', validatecommand=(validatefloat, '%P'),
             )
-
 
             self.process_btn = tk.Button(
                 self,
@@ -264,11 +273,11 @@ class AppTremor(tk.Toplevel):
             self.lbl_band_width_Hz.grid(row=2, column=0)
             self.ent_band_width_Hz.grid(row=2, column=1)
 
-
         def set_conf_change(self, var, indx, mode, key, tkvar):
             try:
                 self.master.c.process.tremor.__setitem__(key, tkvar.get())
-            except:
+            except Exception as e:
+                print(e)
                 pass
 
     class WindowResults(tk.Toplevel):
@@ -277,7 +286,9 @@ class AppTremor(tk.Toplevel):
             self.master = master
             self.title('Output')
 
-            self.quit_btn = tk.Button(self, text='Close', command=self._destroy)
+            self.quit_btn = tk.Button(
+                self, text='Close', command=self._destroy
+            )
 
             self.lf_summary = tk.LabelFrame(self, text='Summary')
 
@@ -292,7 +303,8 @@ class AppTremor(tk.Toplevel):
                 self.channels_lbx.select_set(0)
                 self.channels_lbx.event_generate('<<ListboxSelect>>')
                 self.channels_lbx.focus_set()
-            except:
+            except Exception as e:
+                print(e)
                 pass
 
             table = Table(self.lf_summary, [])
@@ -373,13 +385,15 @@ class AppTremor(tk.Toplevel):
                         )
                     else:
                         starttimes.append(
-                            UTCDateTime(self.master.results[stacha]['starttime'])
+                            UTCDateTime(
+                                self.master.results[stacha]['starttime']
+                            )
                         )
                     endtimes.append(
                         UTCDateTime(self.master.results[stacha]['endtime'])
                     )
                 starttime = min(starttimes).datetime
-                endtime   = max(endtimes).datetime
+                endtime = max(endtimes).datetime
 
                 sql_str = f"""
                 INSERT INTO
@@ -415,8 +429,12 @@ class AppTremor(tk.Toplevel):
                     )+"\'"
                 else:
                     lp_time = 'NULL'
-                starttime = UTCDateTime(self.master.results[stacha]['starttime']).datetime
-                endtime = UTCDateTime(self.master.results[stacha]['endtime']).datetime
+                starttime = UTCDateTime(
+                    self.master.results[stacha]['starttime']
+                ).datetime
+                endtime = UTCDateTime(
+                    self.master.results[stacha]['endtime']
+                ).datetime
                 fmin = self.master.results[stacha]['fmin']
                 fmax = self.master.results[stacha]['fmax']
                 fmean = self.master.results[stacha]['fmean']
@@ -427,7 +445,7 @@ class AppTremor(tk.Toplevel):
                     str(h) for h in self.master.results[stacha]['harmonics']
                 )
 
-                harmonics = "\'{" +  harmonics + "}\'"
+                harmonics = "\'{" + harmonics + "}\'"
                 amplitude = self.master.results[stacha]['amplitude']
                 odd = self.master.results[stacha]['odd']
 
@@ -457,8 +475,6 @@ class AppTremor(tk.Toplevel):
                 tk.messagebox.showinfo('Submission succesful',
                                        'Data has been written to the database')
                 self._destroy()
-
-
 
     def check_event(self):
         pre_pick = 20
@@ -518,11 +534,11 @@ class AppTremor(tk.Toplevel):
                     ({channel_ids})
                 """
                 df = pd.read_sql_query(query, self.conn)
-                stachas = ', '.join(
-                    [f'{row.station} {row.channel}' for i, row in df.iterrows()]
-                )
+                stachas = ', '.join([
+                    f'{row.station} {row.channel}' for i, row in df.iterrows()
+                ])
 
-                text=(
+                text = (
                     'There is already an analysed event '
                     f'(ID = {self.event_id}), '
                     f'in the time range requested '
@@ -532,9 +548,9 @@ class AppTremor(tk.Toplevel):
                 )
                 tk.messagebox.showwarning('Event already analysed', text)
             else:
-                text=(
-                    f'There is already an event (ID = {self.event_id}) in the database '
-                    'in the time range requested, but not analysed yet. '
+                text = (
+                    f'There is already an event (ID = {self.event_id}) in the '
+                    'database in the time range requested, but not analysed. '
                     'Any further results will be associated to this event.'
                 )
                 tk.messagebox.showwarning('Event in database', text)
@@ -561,7 +577,7 @@ class AppTremor(tk.Toplevel):
 
         stacha = f'{tr.stats.station} {tr.stats.channel}'
 
-        time_str = str(tr.stats.starttime)[:-8].replace('T',' ')
+        # time_str = str(tr.stats.starttime)[:-8].replace('T', ' ')
 
         time = np.arange(
             0, tr.stats.npts/tr.stats.sampling_rate, tr.stats.delta
@@ -569,10 +585,10 @@ class AppTremor(tk.Toplevel):
         if len(time) > len(tr.data):
             time = time[:-1]
 
-        self.fig = plt.figure(figsize=(8, 5))
+        self.fig = plt.figure(figsize=(6, 5))
 
         self.fig.subplots_adjust(
-            left=.07, bottom=.07, right=.95, top=0.962, wspace=.04, hspace=.12
+            left=.13, bottom=.09, right=.95, top=0.92, wspace=.04, hspace=.25
         )
 
         gs = gridspec.GridSpec(nrows=3, ncols=1, height_ratios=[1, 4, 4])
@@ -595,7 +611,8 @@ class AppTremor(tk.Toplevel):
         spectrogram(self.c, tr, self.ax2)
         self.ax2.set_ylabel('Frequency [Hz]')
         self.ax2.set_xlabel('Time [s]')
-
+        # TODO borrar, solo para ejemplo
+        self.ax2.set_ylim(0, 15)
 
         def on_lims_change(axes):
             try:
@@ -606,7 +623,8 @@ class AppTremor(tk.Toplevel):
                 margin = (y.max() - y.min()) * 0.05
                 _ax1.set_ylim(y.min()-margin, y.max()+margin)
                 ax1.set_ylim(y.min()-margin, y.max()+margin)
-            except:
+            except Exception as e:
+                print(e)
                 return
 
         ax1.callbacks.connect('xlim_changed', on_lims_change)
@@ -654,15 +672,15 @@ class AppTremor(tk.Toplevel):
         self.gs = gs
 
     def process(self, event):
-        window_s        = float(self.frm_process.ent_window_length.get())
-        overlap         = float(self.frm_process.ent_overlap.get())
-        freqmin         = float(self.frm_process.ent_freqmin.get())
-        freqmax         = float(self.frm_process.ent_freqmax.get())
-        order           = int(self.frm_process.order_ent.get())
-        thresh          = float(self.frm_process.ent_thresh.get())
+        window_s = float(self.frm_process.ent_window_length.get())
+        overlap = float(self.frm_process.ent_overlap.get())
+        freqmin = float(self.frm_process.ent_freqmin.get())
+        freqmax = float(self.frm_process.ent_freqmax.get())
+        order = int(self.frm_process.order_ent.get())
+        thresh = float(self.frm_process.ent_thresh.get())
         n_harmonics_max = int(self.frm_process.ent_n_harmonics_max.get())
-        band_width_Hz   = float(self.frm_process.ent_band_width_Hz.get())
-        factor          = float(self.frm_process.factor_ent.get())
+        band_width_Hz = float(self.frm_process.ent_band_width_Hz.get())
+        factor = float(self.frm_process.factor_ent.get())
 
         _tr = self.tr.copy()
         stacha = f'{_tr.stats.station} {_tr.stats.channel}'
@@ -694,7 +712,7 @@ class AppTremor(tk.Toplevel):
         df_f1 = df[df.number == 1]
 
         self.results[stacha]['starttime'] = df.time.min()
-        self.results[stacha]['endtime']   = df.time.max()
+        self.results[stacha]['endtime'] = df.time.max()
 
         tr_amp = self.tr.slice(df.time.min(), df.time.max())
         self.results[stacha]['amplitude'] = np.sqrt((tr_amp.data**2).mean())
@@ -714,21 +732,20 @@ class AppTremor(tk.Toplevel):
                 odd = False
         self.results[stacha]['odd'] = odd
 
-
         # Plot
         amin = df.amplitude.min()
         amax = df.amplitude.max()
         smin = 0.5
-        smax = 1.5
+        smax = 8.5
         s = [smin+a*(smax-smin)/(amax-amin) for a in df.amplitude]
         df['linewidth'] = s
 
         try:
             self.ax3.remove()
             self.ax4.remove()
-        except:
+        except Exception as e:
+            print(e)
             pass
-
 
         self.ax3 = self.ax2.twinx()
         self.ax2.get_shared_y_axes().join(self.ax2, self.ax3)
@@ -746,7 +763,7 @@ class AppTremor(tk.Toplevel):
         self.ax3.plot(t, pitch, c='b', lw=1)
 
         start = df.time.min() - self.tr.stats.starttime
-        end   = df.time.max() - self.tr.stats.starttime
+        end = df.time.max() - self.tr.stats.starttime
 
         if start:
             self.ax3.axvline(start, c='b', lw=1, ls='--')
@@ -759,27 +776,36 @@ class AppTremor(tk.Toplevel):
             try:
                 _df = groups.get_group(n)
             except Exception as e:
+                print(e)
                 continue
 
             _times = [t-self.tr.stats.starttime for t in _df.time]
-            xy     = (_times[-1], _df.frequency.tolist()[-1])
-            xytext = (_times[-1]+20, _df.frequency.tolist()[-1])
+            # Start
+            # xy = (_times[0], _df.frequency.tolist()[0])
+            # xytext = (_times[0]-20, _df.frequency.tolist()[0])
 
-            self.ax3.scatter(
-                _times,
-                _df.frequency,
-                marker='o',
-                lw=_df.linewidth,
-                c='w',
-                s=_df.linewidth,
-                alpha=0.7
-            )
+            # End
+            xy = (_times[-1], _df.frequency.tolist()[-1])
+            # xytext = (_times[-1]+20, _df.frequency.tolist()[-1])
+            xytext = (_times[-1]*1.05, _df.frequency.tolist()[-1])
+
+            # White points over spectrogram
+            # self.ax3.scatter(
+            #     _times,
+            #     _df.frequency,
+            #     marker='o',
+            #     lw=_df.linewidth,
+            #     c='w',
+            #     s=_df.linewidth,
+            #     alpha=0.7
+            # )
             self.ax3.annotate(
-                '$\mathdefault{f_{'+str(n)+'}}$',
+                # r'$\mathdefault{f_{'+str(n)+'}}$',
+                f'{str(n)}',
                 xy=xy,
                 xytext=xytext,
                 arrowprops=dict(arrowstyle='->', color='k'),
-                size=10,
+                size=8,
                 va='center',
                 color='k',
                 bbox=dict(boxstyle='round', fc='0.8')
@@ -793,7 +819,8 @@ class AppTremor(tk.Toplevel):
                 alpha=0.7
             )
             self.ax4.annotate(
-                '$\mathdefault{f_{'+str(n)+'}}$',
+                # r'$\mathdefault{f_{'+str(n)+'}}$',
+                f'{str(n)}',
                 xy=xy,
                 xytext=xytext,
                 arrowprops=dict(arrowstyle='->'),

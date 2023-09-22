@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+
+
+"""
+"""
+
+
 # Python Standard Library
 
 # Other dependencies
@@ -6,10 +13,15 @@ from scipy.signal import butter, lfilter
 
 # Local files
 
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
+
+
 def pre_process(st, inventory):
     st.detrend()
-    st.remove_response(inventory)
     st.filter('highpass', freq=0.5)
+    st.remove_response(inventory)
 
 
 def _butter_bandpass_filter(tr, freqmin, freqmax, order):
@@ -34,9 +46,9 @@ def _butter_bandpass_filter(tr, freqmin, freqmax, order):
     -------
     """
     nyquist = .5 * tr.stats.sampling_rate
-    low     = freqmin / nyquist
-    high    = freqmax / nyquist
-    b, a    = butter(order, [low, high], btype='band')
+    low = freqmin / nyquist
+    high = freqmax / nyquist
+    b, a = butter(order, [low, high], btype='band')
     tr.data = lfilter(b, a, tr.data)
     return
 
@@ -47,3 +59,7 @@ def butter_bandpass_filter(st, freqmin, freqmax, order):
     elif isinstance(st, Stream):
         for tr in st:
             _butter_bandpass_filter(tr, freqmin, freqmax, order)
+
+
+if __name__ == '__main__':
+    pass

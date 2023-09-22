@@ -1,83 +1,66 @@
 #!/usr/bin/env python
 
+
+"""
+Creates a the tonus database.
+"""
+
+
 # Python Standard Library
-import argparse
-import logging
+import os
 
 # Other dependencies
-from obspy import UTCDateTime, read_inventory
-import pandas as pd
 import psycopg2
-from obspy.clients.fdsn import Client
 
-# Local files
-from tonus.database import create_database, create_tables, insert_volcano_stations
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from tonus.config import set_conf
 
+# Local files
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('volcfile', help='CSV file with volcanoes information')
-    return parser.parse_args()
+
+__author__ = 'Leonardo van der Laat'
+__email__ = 'laat@umich.edu'
 
 
 def main():
-    args = parse_args()
-
     c = set_conf()
 
-    try:
-        inventory = read_inventory(c.inventory)
-    except:
-        url = f'http://{c.fdsn.ip}:{c.fdsn.port}'
-        logging.info(f'Connecting to {url}...')
-        client = Client(url)
-        logging.info('Succesfully connected to FDSN client.')
-
-        inventory = client.get_stations(
-            level='response', endafter=UTCDateTime.now(),
-            network=c.network
-        )
-        inventory.write(c.inventory, format='STATIONXML')
-
-    df = pd.read_csv(args.volcfile)
-    df = df.sort_values(
-        by=['longitude', 'latitude'], ascending=[True, False]
+    # Connect to postgres default database
+    conn = psycopg2.connect(
+        host=c.db.host,
+        database='postgres',
+        user=c.db.user,
+        password=c.db.password
     )
-    df = df.reset_index()
 
-    try:
-        conn = psycopg2.connect(**c.db)
-        logging.warning(f'Existing database with name {c.db.database}')
+    # Check if the database exists
+    cursor = conn.cursor()
+    cursor.execute('SELECT datname FROM pg_database')
+    databases = cursor.fetchall()
+    if c.db.database in databases:
+        print(f'Existing database with name {c.db.database}')
         conn.close()
-    except Exception as e:
-        logging.info('Database does not exist. Creating it now.')
+        return
 
-        conn = psycopg2.connect(
-            host     = c.db.host,
-            user     = c.db.user,
-            password = c.db.password
-        )
+    print('Database does not exist. Creating it now.')
 
-        create_database(conn, c.db.database)
+    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    cursor = conn.cursor()
+    cursor.execute(f'CREATE DATABASE {c.db.database};')
+    conn.close()
 
-        conn = psycopg2.connect(**c.db)
+    # Connect to the newly created database
+    conn = psycopg2.connect(**c.db)
 
-        create_tables(conn)
-
-        logging.info('Inserting volcanoes, stations and channels...')
-        for i, row in df.iterrows():
-            insert_volcano_stations(
-                inventory, row.volcano, row.latitude, row.longitude,
-                c.max_radius, conn
-            )
+    # Create tables
+    sql_filepath = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'schema.sql'
+    )
+    with conn:
+        conn.cursor().execute(open(sql_filepath, 'r').read())
+    return
 
 
 if __name__ == '__main__':
-    LEVEL   = logging.INFO
-    FORMAT  = '%(asctime)s %(levelname)s: %(message)s'
-    DATEFMT = '%Y-%m-%d %H:%M:%S'
-
-    logging.basicConfig(level=LEVEL, format=FORMAT, datefmt=DATEFMT)
-
     main()
