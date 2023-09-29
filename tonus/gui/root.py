@@ -24,7 +24,7 @@ from PIL import Image, ImageTk
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 plt.style.use('dark_background')

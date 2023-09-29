@@ -15,7 +15,7 @@ from obspy.geodetics.base import kilometers2degrees, gps2dist_azimuth
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 def get_column_names(table_name, conn):

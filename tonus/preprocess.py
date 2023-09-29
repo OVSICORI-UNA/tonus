@@ -15,7 +15,7 @@ from scipy.signal import butter, lfilter
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 def pre_process(st, inventory):

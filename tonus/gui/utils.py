@@ -21,7 +21,7 @@ from obspy import read, Stream
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 def overwrite_c(c):

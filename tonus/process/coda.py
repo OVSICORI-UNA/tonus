@@ -24,7 +24,7 @@ from tonus.preprocess import butter_bandpass_filter
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 def peak_width_half_abs_height(freq, fft, peak):

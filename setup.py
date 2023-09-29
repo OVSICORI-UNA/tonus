@@ -9,7 +9,7 @@ from setuptools import setup
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 def main():
@@ -29,7 +29,7 @@ if __name__ == '__main__':
         long_description=readme(),
         url='https://github.com/OVSICORI-UNA/tonus',
         author='Leonardo van der Laat',
-        author_email='laat@umich.edu',
+        author_email='lvmzxc@gmail.com',
         packages=['tonus'],
         install_requires=[],
         scripts=[

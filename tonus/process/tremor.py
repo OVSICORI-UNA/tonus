@@ -24,13 +24,15 @@ from tonus.detection.obspy2numpy import st2windowed_data
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 @jit(nopython=True)
 def yin_block(data, fs, w_size, tau_max, thresh):
     '''
     Estimate pitch for a windowed chunk of signal using the YIN algorithm.
+
+    Steps 2-4 of DeCheveigné et al. (2002).
 
     Parameters:
     -----------
@@ -54,26 +56,25 @@ def yin_block(data, fs, w_size, tau_max, thresh):
         Confidence level of the pitch estimate. Returns NaN if no reliable
         pitch estimate is found.
     '''
-    # Initialize an array to store the ACF (auto-correlation function)
+    # Step 2: Difference function
+    # Initialize an array to store the difference function
     r = np.zeros(tau_max)
-
-    # Step 1: The autocorrelation method (Eq. 1)
     for i in range(tau_max):
         vec = np.zeros(w_size, dtype=np.float64)
 
         # Create a vector for the current lag
         vec[:] = data[:w_size] - data[i:w_size+i]
 
-        # Squared dot product and store it in ACF
+        # Squared dot product
         r[i] = np.dot(vec, vec)
 
+    # Step 3: Cumulative mean normalized difference function
     # Initialize an array to store the
     d = np.zeros(tau_max)
     # The sum in Eq. 8
     s = r[0]
     d[0] = 1
 
-    # Step 3: cumulative mean normalized difference function
     for i in range(1, tau_max):
         s += r[i]
         d[i] = r[i] / ((1/i)*s)
@@ -85,7 +86,7 @@ def yin_block(data, fs, w_size, tau_max, thresh):
     if len(d[idcs]) == 0:
         return np.nan, np.nan
 
-    # Calculate the pitch and its confidence
+    # return the pitch and its confidence
     return min(d[idcs]), fs/idcs[0][np.argmin(d[idcs])]
 
 

@@ -27,7 +27,7 @@ from obspy import UTCDateTime
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 class AppCoda(tk.Toplevel):

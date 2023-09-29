@@ -24,9 +24,9 @@ def _butter_bandpass_filter(tr, freqmin, freqmax, order):
     -------
     """
     nyquist = .5 * tr.stats.sampling_rate
-    low     = freqmin / nyquist
-    high    = freqmax / nyquist
-    b, a    = butter(order, [low, high], btype='band')
+    low = freqmin / nyquist
+    high = freqmax / nyquist
+    b, a = butter(order, [low, high], btype='band')
     tr.data = lfilter(b, a, tr.data)
     return
 

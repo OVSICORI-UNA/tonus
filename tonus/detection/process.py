@@ -20,7 +20,7 @@ from tonus.detection.obspy2numpy import st2windowed_data
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 @jit(nopython=True)

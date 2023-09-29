@@ -20,7 +20,7 @@ from matplotlib.backends.backend_tkagg import (
 
 
 __author__ = 'Leonardo van der Laat'
-__email__ = 'laat@umich.edu'
+__email__ = 'lvmzxc@gmail.com'
 
 
 class WindowSpecSettings(tk.Toplevel):
