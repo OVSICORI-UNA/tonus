@@ -214,7 +214,7 @@ def _plot_db_coda(df, hist):
 def _plot_db_tremor(df, hist):
     s = 25
 
-    fig = plt.figure(figsize=(6.5, 6.5))
+    fig = plt.figure(figsize=(6.5, 7.5))
     fig.subplots_adjust(
         left=.1,
         bottom=.06,
@@ -229,7 +229,7 @@ def _plot_db_tremor(df, hist):
         print(e)
         pass
 
-    rows = 4
+    rows = 5
     cols = 1
 
     ax1 = fig.add_subplot(rows, cols, 1)
@@ -241,9 +241,12 @@ def _plot_db_tremor(df, hist):
     ax3 = fig.add_subplot(rows, cols, 3, sharex=ax1)
     ax3.set_ylabel('Duration [s]')
 
-    ax4 = fig.add_subplot(rows, cols, 4, sharex=ax1)
+    ax4 = fig.add_subplot(rows, cols, 5, sharex=ax1)
 
-    label_fmt = 'Number of events per {}'
+    ax5 = fig.add_subplot(rows, cols, 4, sharex=ax1)
+    ax5.set_ylabel('Number of\nharmonics')
+
+    label_fmt = 'Number of events\nper {}'
     ylabel = label_fmt.format('day')
     bin_width = 1
     if hist.index.freqstr[0] == 'W':
@@ -263,6 +266,7 @@ def _plot_db_tremor(df, hist):
         scatter(ax1, _df.starttime, _df.fmean, stacha)
         scatter(ax2, _df.starttime, _df.amplitude*1e6, stacha)
         scatter(ax3, _df.starttime, duration, stacha)
+        scatter(ax5, _df.starttime, _df.n_harmonics, stacha)
 
     ax4.bar(
         hist.index,
@@ -272,10 +276,13 @@ def _plot_db_tremor(df, hist):
         width=pd.Timedelta(days=bin_width),
     )
 
-    # Ejemplo Turrialba
-    # ax1.set_ylim(0.5, 3.1)
     ax2.set_ylim(0.05, 20)
     ax2.set_yscale('log')
+
+    # Ejemplo Turrialba
+    # import datetime
+    # import matplotlib.dates as md
+    # ax1.set_ylim(0.5, 3.1)
     # ax3.set_ylim(-300, 4000)
     # ax4.set_xlim(
     #     datetime.datetime(2018, 2, 1),

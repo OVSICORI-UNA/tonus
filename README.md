@@ -1,11 +1,7 @@
 # TODO
 
-1. Remove the table event
-1. An example with FDSN connection for 'detect'
-1. a figure for the intro showing tornillo, multichromatic and harmonic tremor
 1. Documentation
 1. write docstrings
-1. write code authorship
 1. Change documentation for conda env
 1. Details on how the postgresql must be configured
 

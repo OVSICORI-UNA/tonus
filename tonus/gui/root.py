@@ -9,6 +9,7 @@ Main window of the application.
 
 # Python Standard Library
 import logging
+import os
 import tkinter as tk
 
 # Other dependencies
@@ -19,8 +20,6 @@ import psycopg2
 import tonus
 
 # Local files
-
-from PIL import Image, ImageTk
 
 
 __author__ = 'Leonardo van der Laat'
@@ -33,11 +32,11 @@ plt.style.use('dark_background')
 class Root(tk.Tk):
     def __init__(self):
         super().__init__()
-        # self.iconbitmap('')
 
-        # ico = Image.open('/Users/laat/Downloads/cas-email.jpeg')
-        # photo = ImageTk.PhotoImage(ico)
-        # self.wm_iconphoto(False, photo)
+        folderpath = os.path.dirname(os.path.realpath(__file__))
+
+        icon = tk.PhotoImage(file=os.path.join(folderpath, 'icon.png'))
+        self.iconphoto(True, icon, icon)
 
         self._set_conf()
 
