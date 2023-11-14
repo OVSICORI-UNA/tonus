@@ -1,9 +1,6 @@
-# TODO
+# tonus
 
-1. Documentation
-1. write docstrings
-1. Change documentation for conda env
-1. Details on how the postgresql must be configured
+`tonus` is a tool for detection, characterization and cataloguing of seismo-volcanic tonal signals.
 
 # Software installation
 
