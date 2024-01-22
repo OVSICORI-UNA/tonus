@@ -9,7 +9,7 @@ Various and diverse utils.
 # Python Standard Library
 import logging
 import tkinter as tk
-import toml
+import tomllib
 
 # Other dependencies
 import matplotlib.pyplot as plt
@@ -26,7 +26,7 @@ __email__ = 'lvmzxc@gmail.com'
 
 def overwrite_c(c):
     with open(tonus.config.CONF_FILEPATH, 'w') as f:
-        toml.dump(c, f)
+        tomllib.dump(c, f)
     tk.messagebox.showinfo(
         'Configuration saved',
         f'Current settings saved in the {tonus.config.CONF_FILEPATH} file'

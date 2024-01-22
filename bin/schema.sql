@@ -19,7 +19,6 @@ CREATE TABLE station (
     distance int4 NULL,
     volcano varchar NULL,
     CONSTRAINT station_pk PRIMARY KEY (id),
-    CONSTRAINT station_fk FOREIGN KEY (volcano_id) REFERENCES volcano(id) ON DELETE CASCADE
 );
 
 CREATE TABLE channel (

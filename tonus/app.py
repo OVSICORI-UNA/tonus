@@ -1053,7 +1053,7 @@ class Root(tk.Tk):
             self.c = set_conf()
         except Exception as e:
             logging.error(e)
-            text=(
+            text = (
                 f'Configuration {CONF_FILEPATH} file missing. '
                 'Copy it from tonus/ and modify it.'
             )

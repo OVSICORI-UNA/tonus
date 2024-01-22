@@ -107,12 +107,14 @@ def main():
         max_trigger_length=c.detect.trigger.max_trigger_length,
         delete_long_trigger=c.detect.trigger.delete_long_trigger
     )
+    print(len(events))
 
     logging.info('Writing output...')
     swarm_str = (
-        f'{c.detect.waveforms.station[0]} '
-        f'{c.detect.waveforms.channel[0]} '
-        f'{c.detect.waveforms.network[0]}'
+        f'{st[0].stats.station} '
+        f'{st[0].stats.channe} '
+        f'{st[0].stats.network} '
+        f'{st[0].stats.location}'
     )
     output = open(c.detect.io.output_file, 'w')
     for event in events:
