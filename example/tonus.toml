@@ -1,0 +1,76 @@
+inventory = "/Users/laat/code/tonus/example/inventory.xml"
+
+[waveserver]
+name = "fdsn"
+ip = "10.10.128.89"
+port = "8080"
+
+[db]
+host = "localhost"
+user = "laat"
+password = "1234"
+database = "tonus_test"
+
+[waveforms]
+swarm_dir = "/Users/laat/code/tonus/example/"
+duration = 120
+
+[spectrogram]
+nfft = 512
+mult = 8
+per_lap = 0.9
+ymin = 0.1
+ymax = 15
+dbscale = true
+cmap = "turbo"
+std_factor = 4
+
+[process.coda]
+freqmin = 2.0
+freqmax = 15
+order = 4
+factor = 4
+distance_Hz = 0.5
+
+[process.tremor]
+freqmin = 1
+freqmax = 16
+order = 4
+window_length = 20
+overlap = 0.9
+thresh = 0.5
+n_harmonics_max = 10
+factor = 3
+band_width_Hz = 3
+
+[detect.waveforms]
+network = ["TC", "OV"]
+station = ['VTUC' 'VTUN', 'CVTR']
+location = ['*']
+channel = ["HH*"]
+
+[detect.filter]
+freqmin = 3
+freqmax = 16
+order = 4
+
+[detect.window]
+short_win = 10
+overlap = 0.9
+pad = 0.1
+long_win = 60
+
+[detect.tonality]
+k = 3
+bin_width = 1
+
+[detect.trigger]
+thr_on = 1.8
+thr_off = 1
+thr_coincidence_sum = 2
+max_trigger_length = 60
+delete_long_trigger = false
+
+[detect.io]
+input_dir = "/Users/laat/code/tonus/example/wfs/"
+output_file = "/Users/laat/tonus_detect_output.csv"

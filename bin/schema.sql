@@ -19,6 +19,7 @@ CREATE TABLE station (
     distance int4 NULL,
     volcano varchar NULL,
     CONSTRAINT station_pk PRIMARY KEY (id),
+    CONSTRAINT station_fk FOREIGN KEY (volcano_id) REFERENCES public.volcano(id)
 );
 
 CREATE TABLE channel (
@@ -44,7 +45,7 @@ CREATE TABLE event (
     endtime timestamp(3) NULL,
     volcano_id int8  NULL,
     CONSTRAINT event_pk PRIMARY KEY (id),
-    CONSTRAINT event_fk FOREIGN KEY (volcano_id) REFERENCES volcano(id)
+    CONSTRAINT event_fk FOREIGN KEY (volcano_id) REFERENCES volcano(id) ON DELETE CASCADE
 );
 
 CREATE TABLE coda (
@@ -57,7 +58,7 @@ CREATE TABLE coda (
     id serial NOT NULL,
     CONSTRAINT coda_pk PRIMARY KEY (id),
     CONSTRAINT coda_un UNIQUE (channel_id, event_id),
-    CONSTRAINT coda_times_fk FOREIGN KEY (event_id) REFERENCES "event"(id),
+    CONSTRAINT coda_times_fk FOREIGN KEY (event_id) REFERENCES "event"(id) ON DELETE CASCADE,
     CONSTRAINT coda_times_fk_1 FOREIGN KEY (channel_id) REFERENCES channel(id)
 );
 
@@ -68,7 +69,7 @@ CREATE TABLE coda_peaks (
     coda_id int8 NULL,
     id serial NOT NULL,
     CONSTRAINT coda_peaks_pk PRIMARY KEY (id),
-    CONSTRAINT coda_peaks_fk FOREIGN KEY (coda_id) REFERENCES coda(id)
+    CONSTRAINT coda_peaks_fk FOREIGN KEY (coda_id) REFERENCES coda(id) ON DELETE CASCADE
 );
 
 CREATE TABLE tremor (
