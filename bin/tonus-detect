@@ -112,7 +112,7 @@ def main():
     logging.info('Writing output...')
     swarm_str = (
         f'{st[0].stats.station} '
-        f'{st[0].stats.channe} '
+        f'{st[0].stats.channel} '
         f'{st[0].stats.network} '
         f'{st[0].stats.location}'
     )

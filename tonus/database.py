@@ -21,17 +21,23 @@ __email__ = 'lvmzxc@gmail.com'
 def get_column_names(table_name, conn):
     query = f"""
     SELECT
-        column_name
+        column_name,
+        ordinal_position,
+        data_type
     FROM
         information_schema.columns
     WHERE
         table_name = '{table_name}'
     AND
-        column_name != 'id';
+        column_name != 'id'
+    ORDER BY
+        ordinal_position;
     """
+
     cursor = conn.cursor()
     cursor.execute(query)
-    return [row[0] for row in cursor]
+    columns = [row[0] for row in cursor]
+    return columns
 
 
 def insert_volcano_stations(
