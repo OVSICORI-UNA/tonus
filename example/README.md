@@ -1,9 +1,9 @@
 # Demo scripts
 
-This folder contains four minimal working examples just for demonstration.
+This folder contains two minimal working examples just for demonstration purposes.
 
-The first two examples are intended to demonstrate the core detection and spectral peak extraction 
-These don't need the user to have a PostgreSQL server running.
+The first example is intended to demonstrate the core detection and spectral peak extraction.
+To run this you won't need to have a PostgreSQL server running.
 
 For those users looking to establish their own database, section 2 demonstrate how to create and pre-populate a database, respectively.
 
