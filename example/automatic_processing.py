@@ -32,13 +32,12 @@ def parse_args():
 
 
 def main():
-    inventory = obspy.read_inventory('./example/inventory.xml')
-
     args = parse_args()
 
     df = pd.read_csv(args.filepath, names=['starttime', 'label', 'duration'])
 
     c = tonus.config.set_conf()
+    inventory = obspy.read_inventory(c.inventory)
 
     st = obspy.Stream()
     for filename in os.listdir(c.detect.io.input_dir):
@@ -90,13 +89,14 @@ def main():
             label=station,
             s=_out.s,
             lw=0.5,
-            ec='k'
+            ec='k',
+            alpha=0.5,
         )
 
     plt.ylabel('Frequency [Hz]')
     plt.yscale('log')
     plt.legend()
-    plt.show()
+    plt.savefig('results.png', dpi=250)
     return
 
 
