@@ -27,14 +27,11 @@ First, modify this section of the `~/.tonus.toml` file:
 input_dir = "[PATH/TO/REPO]/example/wfs/"
 output_file = "[PATH/TO/REPO]/example/detect_output.csv"
 ```
-
+so that the program knows where the `mseed` waveform files are and were to output the results, 
 and indicate in the `~/.tonus.toml` file where the inventory is (we already provide one in this folder):
-
 ```toml
 inventory = "[PATH/TO/REPO]/example/inventory.xml"
 ```
-
-So that the program knows where the `mseed` waveform files are and were to output the results, 
 Then, run:
 ```bash
 tonus-detect --starttime 2016-04-25 --endtime 2016-04-26
