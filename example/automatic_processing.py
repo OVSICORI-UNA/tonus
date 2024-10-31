@@ -10,6 +10,7 @@ import argparse
 import os
 
 # Other dependencies
+import matplotlib.dates as md
 import matplotlib.pyplot as plt
 import obspy
 import pandas as pd
@@ -80,10 +81,18 @@ def main():
 
     stations = [tr.stats.station for tr in st]
 
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.set_ylabel('Frequency [Hz]')
+    ax.set_yscale('log')
+    ax.legend()
+    ax.xaxis.set_major_locator(md.HourLocator(interval=2))
+    ax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
+    ax.set_xlabel(st[0].stats.starttime.date)
+
     out['s'] = out.amplitude/2
     for station in stations:
         _out = out[out.station == station]
-        plt.scatter(
+        ax.scatter(
             _out.t,
             _out.frequency,
             label=station,
@@ -93,10 +102,8 @@ def main():
             alpha=0.5,
         )
 
-    plt.ylabel('Frequency [Hz]')
-    plt.yscale('log')
-    plt.legend()
-    plt.savefig('results.png', dpi=250)
+    fig.tight_layout()
+    fig.savefig('results.png', dpi=250)
     return
 
 
