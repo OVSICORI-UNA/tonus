@@ -18,7 +18,7 @@ and make sure you have an active conda environment with the dependencies as show
 
 In this section we detect and automatically process tonal coda events with many spectral peaks from Turrialba volcano.
 For this purpose we have provided `mseed` files in the `wfs/` folder for a day when tens of tonal events occured at this volcano.
-This is a two step process, first we detect the events, then we process their waveforms.
+This is a two step process, first we detect the events, then we extract the desired data from their waveforms.
 
 ### 1.1. Detect events
 
