@@ -90,4 +90,4 @@ Then run:
 tonus-db-populate volcanoes.csv
 ```
 
-Now you could run the GUI and process the detections yourself, instead of automatically, which would results in better results if you tune the parameters to your liking.
+Now you could run the GUI and process the detections yourself, instead of automatically, which would lead to better results if you tune the parameters according to what you see in the spectrogram.
