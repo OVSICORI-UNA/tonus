@@ -17,6 +17,7 @@ and make sure you have an active conda environment with the dependencies as show
 ## 1. Detecion and processing
 
 In this section we detect and automatically process tonal coda events with many spectral peaks from Turrialba volcano.
+This is a two step process, first we detect the events, then we process their waveforms.
 
 ### 1.1. Detect events
 
