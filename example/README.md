@@ -85,10 +85,8 @@ This creates the database with the proper SQL schema.
 Now, we demonstrate how to populate the database you just created with volcano and stations information.
 You'll need a `csv` file for the volcano information and a `STATIONXML` inventory for the instrument responses.
 
-Then run:
-
 ```bash
 tonus-db-populate volcanoes.csv
 ```
 
-Now you could run the GUI and process the detections yourself, instead of automatically, which would lead to better results if you tune the parameters according to what you see in the spectrogram.
+Now that the volcano and stations information is in your new database, you could run the GUI and process the detections yourself, instead of automatically, which would lead to better results since you can tune the parameters according to what you see in the spectrogram.
