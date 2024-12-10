@@ -2,6 +2,8 @@
 
 `tonus` is a tool for detection, characterization and cataloguing of seismo-volcanic tonal signals.
 
+We kindly ask you if use our codes in our research to cite https://doi.org/10.1016/j.cageo.2024.105791
+
 # Software installation
 
 `tonus` requieres two different installations:
