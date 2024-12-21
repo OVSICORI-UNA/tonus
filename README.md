@@ -27,11 +27,13 @@ You must have Anaconda in your system.  Create a `conda` environment with depend
     (myenv) $ conda install numba
     (myenv) $ conda install scikit-image
 
+Make sure the python version you install is ≥ 3.11 (when the `tomllib` module was introduced to the standard library).
+
 ### tonus
 
 Clone the repository:
 
-    $ git clone https://github.com/OVSICORI-UNA/tonus.git
+    $ git clone https://github.com/lvanderlaat/tonus.git
 
 Install the package in the `conda` environment created previously:
 
